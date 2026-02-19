@@ -3,7 +3,7 @@ const isDev = typeof import.meta !== 'undefined'
   ? import.meta.env?.DEV
   : typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production';
 
-const PROD_API_URL = import.meta.env?.VITE_API_BASE_URL || 'https://your-api-id.execute-api.us-east-1.amazonaws.com/prod/graphql';
+const PROD_API_URL = import.meta.env?.VITE_API_BASE_URL || 'https://qz4k4nhlwfo4p3jdkzsxpdfksu0hwqir.lambda-url.ap-south-1.on.aws';
 
 export const backendConfig = {
   apiUrl: isDev
@@ -11,7 +11,7 @@ export const backendConfig = {
     : PROD_API_URL,
   githubOAuthUrl: 'https://github.com/login/oauth/authorize',
   environment: isDev ? 'development' : 'production',
-  region: 'us-east-1',
+  region: 'ap-south-1',
   frontendUrl: isDev ? 'http://localhost:3000' : 'https://vj-eta.vercel.app',
   callbackUrl: isDev ? 'http://localhost:3000/auth/callback' : 'https://vj-eta.vercel.app/auth/callback',
 };
