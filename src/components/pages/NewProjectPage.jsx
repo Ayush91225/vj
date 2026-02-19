@@ -60,7 +60,14 @@ export const NewProjectPage = () => {
   const [fetchingFiles, setFetchingFiles] = useState(false);
   const [errors, setErrors] = useState({ githubRepo: false, teamName: false, teamLeader: false });
   const [isRunningAgent, setIsRunningAgent] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const githubInputRef = useRef(null);
+
+  useEffect(() => {
+    const handleOpenMobileRepos = () => setMobileSidebarOpen(true);
+    window.addEventListener('openMobileRepos', handleOpenMobileRepos);
+    return () => window.removeEventListener('openMobileRepos', handleOpenMobileRepos);
+  }, []);
 
   const isValidGithubUrl = githubRepo.startsWith('https://github.com/');
 
@@ -128,6 +135,30 @@ export const NewProjectPage = () => {
     <>
       {isRunningAgent && <AgentLoadingScreen onComplete={handleAgentComplete} />}
       
+      {mobileSidebarOpen && (
+        <div className="mobile-sidebar-overlay" onClick={() => setMobileSidebarOpen(false)}>
+          <div className="mobile-sidebar" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-sidebar-header">
+              <div className="voice-tab-title">Import from GitHub</div>
+              <button className="mobile-sidebar-close" onClick={() => setMobileSidebarOpen(false)}>✕</button>
+            </div>
+            <div className="voice-list">
+              {GITHUB_REPOS.map(repo => (
+                <VoiceCard
+                  key={repo.name}
+                  repo={repo}
+                  onSelect={() => {
+                    setGithubRepo(repo.url);
+                    setMobileSidebarOpen(false);
+                    githubInputRef.current?.focus();
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="tts-page">
         <div className="tts-left-panel">
           <div className={`textarea-card ${showFileTree || fetchingFiles ? 'file-tree-active' : ''} ${fetchingFiles ? 'skeleton' : ''}`}>
@@ -193,6 +224,7 @@ export const NewProjectPage = () => {
           </div>
 
           <button className="run-agent-btn" onClick={handleRunAgent}>Run Agent</button>
+          <button className="mobile-repos-btn" onClick={() => setMobileSidebarOpen(true)}>Browse GitHub Repos</button>
         </div>
 
         <div className="tts-right-panel">

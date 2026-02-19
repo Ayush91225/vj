@@ -33,6 +33,11 @@ function AppContent() {
   const slim = !isMobile && sidebarCollapsed;
   const sidebarWidth = slim ? SIDEBAR_SLIM : SIDEBAR_WIDE;
   const activePage = location.pathname.split('/')[1] || 'project';
+  
+  const handleMobileReposOpen = () => {
+    const event = new CustomEvent('openMobileRepos');
+    window.dispatchEvent(event);
+  };
 
   return (
     <div className="app">
@@ -55,6 +60,7 @@ function AppContent() {
           setMobileOpen={setMobileOpen}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
+          onMobileReposOpen={handleMobileReposOpen}
         />
         
         <div className="page-body">

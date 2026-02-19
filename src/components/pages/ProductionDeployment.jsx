@@ -89,11 +89,11 @@ const WebsitePreview = () => {
   const totalScore = Math.min(Math.max(rawTotal, 0), 100);
   
   return (
-  <div style={{ width: "100%", height: "100%", background: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px", boxSizing: "border-box" }}>
+  <div style={{ width: "100%", height: "100%", background: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "24px 24px 16px", boxSizing: "border-box", overflow: "hidden" }}>
     <div style={{ fontSize: "64px", fontWeight: "300", color: "#111", lineHeight: 1, fontFamily: "'Season Mix', sans-serif", marginBottom: "6px" }}>{totalScore}</div>
-    <div style={{ fontSize: "13px", color: "#6b7280", fontWeight: "400", marginBottom: "32px", fontFamily: "'Matter', sans-serif" }}>Quality Score</div>
+    <div style={{ fontSize: "13px", color: "#6b7280", fontWeight: "400", marginBottom: "24px", fontFamily: "'Matter', sans-serif" }}>Quality Score</div>
     
-    <div style={{ width: "100%", maxWidth: "100%", paddingLeft: "16px", paddingRight: "16px", boxSizing: "border-box" }}>
+    <div style={{ width: "100%", maxWidth: "100%", paddingLeft: "16px", paddingRight: "16px", boxSizing: "border-box", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
       {[
         { label: "Base Score", count: baseScore, color: "#111" },
         { label: "Speed Bonus", count: speedBonus, color: "#374151", show: speedBonus > 0 },
@@ -539,7 +539,7 @@ const UserCard = memo(function UserCard({ user, onUpdate }) {
         </div>
 
         {errorsOpen && (
-          <div style={{ borderTop: "1px solid #f0f0f0", background: "#fefefe", position: "relative", overflow: "hidden" }}>
+          <div className="code-issues-container" style={{ borderTop: "1px solid #f0f0f0", background: "#fefefe", position: "relative", overflow: "hidden" }}>
             {fixingIndex === 'all' && <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.15), transparent)", animation: "shimmer 1.5s infinite", zIndex: 0 }} />}
             {[{ severity: "High", file: "src/components/Header.jsx", line: 23, message: "Unused variable 'userData'", oldCode: `const userData = getUserData();
 const [isOpen, setIsOpen] = useState(false);
@@ -660,7 +660,7 @@ const UserCard = memo(function UserCard({ user, onUpdate }) {
   color: red;
 }`, newCode: `` }].map((error, i) => (
               <div key={i} style={{ borderBottom: i < 4 ? "1px solid #f0f0f0" : "none" }}>
-                <div className="prod-settings" style={{ position: "relative", overflow: "hidden", cursor: failedButtons.includes(i) ? "pointer" : "default" }} onClick={() => failedButtons.includes(i) && setExpandedErrors(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])}>
+                <div className="code-issue-row" style={{ position: "relative", overflow: "hidden", cursor: failedButtons.includes(i) ? "pointer" : "default" }} onClick={() => failedButtons.includes(i) && setExpandedErrors(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])}>
                   {fixingIndex === i && <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.15), transparent)", animation: "shimmer 1.5s infinite", zIndex: 0 }} />}
                   {failedButtons.includes(i) && <div style={{ transform: expandedErrors.includes(i) ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s", position: "relative", zIndex: 1, marginRight: "8px" }}><ChevronRightIcon /></div>}
                   <div style={{ minWidth: "60px", fontWeight: "600", fontSize: "12px", position: "relative", zIndex: 1 }}>{error.severity}</div>
@@ -696,24 +696,26 @@ const UserCard = memo(function UserCard({ user, onUpdate }) {
             </div>
 
             {settingsOpen && (
-              <div style={{ borderTop: "1px solid #f0f0f0", background: "#fefefe", padding: "16px 32px" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "200px 120px 80px 300px 80px", gap: "12px", padding: "12px 0", borderBottom: "2px solid #e5e7eb", fontSize: "12px", fontWeight: "600", color: "#6b7280" }}>
-                  <div>File</div><div>Bug Type</div><div>Line</div><div>Commit Message</div><div>Status</div>
-                </div>
-                {fixedIssues.map((fix, i) => (
-                  <div key={i}>
-                    <div style={{ display: "grid", gridTemplateColumns: "200px 120px 80px 300px 80px", gap: "12px", padding: "16px 0", borderBottom: "1px solid #f1f5f9", fontSize: "13px", alignItems: "center" }}>
-                      <div style={{ fontFamily: "monospace", fontSize: "12px" }}>{fix.file}</div>
-                      <div style={{ background: "#f3f4f6", padding: "2px 6px", borderRadius: "4px", fontSize: "11px", textAlign: "center" }}>{fix.bugType}</div>
-                      <div style={{ fontFamily: "monospace" }}>L{fix.line}</div>
-                      <div style={{ fontSize: "12px" }}>Fix {fix.bugType.toLowerCase()} issue</div>
-                      <div style={{ color: "#16a34a", fontWeight: "500" }}>✓ Fixed</div>
-                    </div>
-                    <div style={{ padding: "20px 0", borderBottom: i < fixedIssues.length - 1 ? "1px solid #e5e7eb" : "none" }}>
-                      <CodeDiff oldCode={fix.oldCode} newCode={fix.newCode} />
-                    </div>
+              <div style={{ borderTop: "1px solid #f0f0f0", background: "#fefefe", padding: "16px 0" }}>
+                <div className="fixes-table-container" style={{ padding: "0 32px" }}>
+                  <div className="fixes-table" style={{ padding: "12px 0", borderBottom: "2px solid #e5e7eb", fontSize: "12px", fontWeight: "600", color: "#6b7280" }}>
+                    <div>File</div><div>Bug Type</div><div>Line</div><div>Commit Message</div><div>Status</div>
                   </div>
-                ))}
+                  {fixedIssues.map((fix, i) => (
+                    <div key={i}>
+                      <div className="fixes-table" style={{ padding: "16px 0", borderBottom: "1px solid #f1f5f9", fontSize: "13px", alignItems: "center" }}>
+                        <div style={{ fontFamily: "monospace", fontSize: "12px" }}>{fix.file}</div>
+                        <div style={{ background: "#f3f4f6", padding: "2px 6px", borderRadius: "4px", fontSize: "11px", textAlign: "center" }}>{fix.bugType}</div>
+                        <div style={{ fontFamily: "monospace" }}>L{fix.line}</div>
+                        <div style={{ fontSize: "12px" }}>Fix {fix.bugType.toLowerCase()} issue</div>
+                        <div style={{ color: "#16a34a", fontWeight: "500" }}>✓ Fixed</div>
+                      </div>
+                      <div style={{ padding: "20px 0", borderBottom: i < fixedIssues.length - 1 ? "1px solid #e5e7eb" : "none" }}>
+                        <CodeDiff oldCode={fix.oldCode} newCode={fix.newCode} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </>

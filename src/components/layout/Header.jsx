@@ -4,7 +4,7 @@ import { memo } from 'react';
 import { PAGE_META } from '../../constants';
 import './Header.css';
 
-export const Header = memo(function Header({ activePage, isMobile, setMobileOpen, searchQuery, setSearchQuery }) {
+export const Header = memo(function Header({ activePage, isMobile, setMobileOpen, searchQuery, setSearchQuery, onMobileReposOpen }) {
   const { title, sub } = PAGE_META[activePage] || { title: "", sub: "" };
   const navigate = useNavigate();
   const location = useLocation();
@@ -24,6 +24,15 @@ export const Header = memo(function Header({ activePage, isMobile, setMobileOpen
             <List size={20} weight="regular" />
           </button>
           <span className="mobile-logo">VajraOpz</span>
+          {activePage === "add" && onMobileReposOpen && (
+            <button 
+              onClick={onMobileReposOpen} 
+              className="menu-button"
+              aria-label="Browse GitHub repositories"
+            >
+              <List size={20} weight="regular" />
+            </button>
+          )}
         </div>
       )}
 
