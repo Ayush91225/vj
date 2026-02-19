@@ -125,14 +125,8 @@ def create_response(status_code: int, body: Dict[str, Any]) -> Dict[str, Any]:
 # =====================================================================
 def _get_github_credentials():
     """Get GitHub OAuth credentials from SSM (Lambda) or env vars (local)"""
-    if IS_LOCAL:
-        return GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
-    else:
-        client_id = ssm.get_parameter(Name=GITHUB_CLIENT_ID_PARAM)['Parameter']['Value']
-        client_secret = ssm.get_parameter(
-            Name=GITHUB_CLIENT_SECRET_PARAM, WithDecryption=True
-        )['Parameter']['Value']
-        return client_id, client_secret
+    # Always use environment variables for simplicity
+    return GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
 
 
 def handle_github_auth(variables: Dict[str, Any]) -> Dict[str, Any]:
