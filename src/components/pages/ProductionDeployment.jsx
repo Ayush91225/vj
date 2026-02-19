@@ -141,8 +141,8 @@ const CheckIcon = () => (
 );
 
 export default function ProductionDeployment() {
-  const { repoName, deploymentId } = useParams();
-  const deployId = deploymentId || 'a3f2c1d';
+  const { projectId } = useParams();
+  const navigate = useNavigate();
   
   const {
     getDeploymentState,
@@ -157,7 +157,7 @@ export default function ProductionDeployment() {
   
   const { projects, fetchProjects } = useProjectStore();
   
-  const deploymentState = getDeploymentState(deployId);
+  const deploymentState = getDeploymentState(projectId || 'default');
   
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState(null);
@@ -228,6 +228,19 @@ export default function ProductionDeployment() {
   }, []);
 
   useEffect(() => {
+    if (!projectId || projects.length === 0) {
+      setLoading(false);
+      return;
+    }
+
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      setSelectedProject(project);
+    }
+    setLoading(false);
+  }, [projectId, projects]);
+
+  useEffect(() => {
     if (!selectedProject) return;
 
     const fetchCommits = async () => {
@@ -268,47 +281,11 @@ export default function ProductionDeployment() {
     fetchCommits();
   }, [selectedProject]);
 
-  if (!selectedProject) {
+  if (!selectedProject || loading) {
     return (
       <div className="production-deployment">
         <div className="prod-header">
-          <h1 className="prod-title">Select a Project</h1>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px", padding: "24px" }}>
-          {projects.map((project) => (
-            <div
-              key={project.id}
-              onClick={() => setSelectedProject(project)}
-              style={{
-                background: "#fff",
-                border: "1px solid #e5e7eb",
-                borderRadius: "8px",
-                padding: "20px",
-                cursor: "pointer",
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = project.color;
-                e.currentTarget.style.boxShadow = `0 4px 12px ${project.color}20`;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "#e5e7eb";
-                e.currentTarget.style.boxShadow = "none";
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-                <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: project.color }} />
-                <h3 style={{ fontSize: "16px", fontWeight: "600", margin: 0 }}>{project.amount}</h3>
-              </div>
-              <div style={{ fontSize: "13px", color: "#6b7280", marginBottom: "8px" }}>
-                <div>Team: {project.metadata.teamName}</div>
-                <div>Leader: {project.metadata.teamLeader}</div>
-              </div>
-              <div style={{ fontSize: "12px", color: "#9ca3af", fontFamily: "monospace" }}>
-                {project.repo.replace('https://', '')}
-              </div>
-            </div>
-          ))}
+          <h1 className="prod-title">Loading...</h1>
         </div>
       </div>
     );
@@ -317,7 +294,7 @@ export default function ProductionDeployment() {
   return (
     <div className="production-deployment">
       <div className="prod-header">
-        <button onClick={() => setSelectedProject(null)} style={{ background: "#f3f4f6", border: "none", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", fontSize: "13px", fontWeight: "500" }}>← Back to Projects</button>
+        <button onClick={() => navigate('/deploy')} style={{ background: "#f3f4f6", border: "none", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", fontSize: "13px", fontWeight: "500" }}>← Back to Projects</button>
         <h1 className="prod-title">{selectedProject.amount}</h1>
         <div className="prod-actions">
           <button className="prod-btn" onClick={() => { setReadmeOpen(!readmeOpen); setTimeout(() => readmeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }}>README.md</button>
