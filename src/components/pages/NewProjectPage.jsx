@@ -4,7 +4,9 @@ import { Folder, File, CaretRight, CaretDown } from 'phosphor-react';
 import { Skeleton } from '../ui/Skeleton';
 import { VoiceCard } from './VoiceCard';
 import { AgentLoadingScreen } from '../ui/AgentLoadingScreen';
-import { VOICE_TABS, GITHUB_REPOS } from '../../constants';
+import { backendApi } from '../../services/backendApi';
+import { useAuthStore } from '../../store';
+import { VOICE_TABS } from '../../constants';
 import './NewProjectPage.css';
 
 const MOCK_FILE_STRUCTURE = [
@@ -51,6 +53,7 @@ const FileTreeItem = ({ item, level = 0, onFileClick }) => {
 
 export const NewProjectPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [voiceTab, setVoiceTab] = useState("Import from GitHub");
   const [loading, setLoading] = useState(true);
   const [githubRepo, setGithubRepo] = useState("");
@@ -58,9 +61,12 @@ export const NewProjectPage = () => {
   const [teamLeader, setTeamLeader] = useState("");
   const [showFileTree, setShowFileTree] = useState(false);
   const [fetchingFiles, setFetchingFiles] = useState(false);
+  const [fileStructure, setFileStructure] = useState([]);
   const [errors, setErrors] = useState({ githubRepo: false, teamName: false, teamLeader: false });
   const [isRunningAgent, setIsRunningAgent] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [githubRepos, setGithubRepos] = useState([]);
+  const [loadingRepos, setLoadingRepos] = useState(true);
   const githubInputRef = useRef(null);
 
   useEffect(() => {
@@ -69,9 +75,35 @@ export const NewProjectPage = () => {
     return () => window.removeEventListener('openMobileRepos', handleOpenMobileRepos);
   }, []);
 
+  useEffect(() => {
+    const fetchGithubRepos = async () => {
+      if (!user?.username) return;
+      
+      setLoadingRepos(true);
+      try {
+        const response = await fetch(`https://api.github.com/users/${user.username}/repos?sort=updated&per_page=50`);
+        const repos = await response.json();
+        setGithubRepos(repos.map(repo => ({
+          name: repo.name,
+          url: repo.html_url,
+          description: repo.description || 'No description',
+          language: repo.language || 'Unknown',
+          stars: repo.stargazers_count,
+          updated: repo.updated_at
+        })));
+      } catch (error) {
+        console.error('Failed to fetch GitHub repos:', error);
+      } finally {
+        setLoadingRepos(false);
+      }
+    };
+
+    fetchGithubRepos();
+  }, [user]);
+
   const isValidGithubUrl = githubRepo.startsWith('https://github.com/');
 
-  const handleRunAgent = () => {
+  const handleRunAgent = async () => {
     const newErrors = {
       githubRepo: !githubRepo.trim() || !isValidGithubUrl || !showFileTree,
       teamName: !teamName.trim(),
@@ -85,6 +117,23 @@ export const NewProjectPage = () => {
     }
 
     setIsRunningAgent(true);
+    
+    try {
+      // Create project in backend
+      const token = backendApi.getToken();
+      const project = await backendApi.createProject(token, githubRepo, teamName, teamLeader);
+      
+      // Trigger agent execution
+      const deployment = await backendApi.triggerAgent(token, project.id);
+      
+      // Navigate to deployment page
+      navigate(`/deploy/project-${project.id}/${deployment.deploymentId}`);
+    } catch (error) {
+      console.error('Failed to run agent:', error);
+      setIsRunningAgent(false);
+      // Show error to user
+      alert('Failed to run agent: ' + error.message);
+    }
   };
 
   const handleAgentComplete = () => {
@@ -92,13 +141,88 @@ export const NewProjectPage = () => {
     navigate(`/deploy/project-alpha/${randomId}`);
   };
 
-  const handleFetch = () => {
+  const handleFetch = async () => {
+    if (!githubRepo) return;
+    
     setFetchingFiles(true);
-    setTimeout(() => {
-      setFetchingFiles(false);
+    setFileStructure([]);
+    
+    try {
+      // Extract owner and repo from URL
+      const match = githubRepo.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+      if (!match) {
+        throw new Error('Invalid GitHub URL');
+      }
+      
+      const [, owner, repo] = match;
+      
+      // Fetch repository tree from GitHub API
+      const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/main?recursive=1`);
+      
+      if (!response.ok) {
+        // Try 'master' branch if 'main' fails
+        const masterResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/master?recursive=1`);
+        if (!masterResponse.ok) throw new Error('Failed to fetch repository');
+        const data = await masterResponse.json();
+        buildFileTree(data.tree);
+      } else {
+        const data = await response.json();
+        buildFileTree(data.tree);
+      }
+      
       setShowFileTree(true);
       setErrors(prev => ({ ...prev, githubRepo: false }));
-    }, 2000);
+    } catch (error) {
+      console.error('Failed to fetch repo:', error);
+      alert('Failed to fetch repository. Please check the URL.');
+    } finally {
+      setFetchingFiles(false);
+    }
+  };
+
+  const buildFileTree = (items) => {
+    const tree = [];
+    const pathMap = {};
+    
+    // Sort items: directories first, then files
+    const sorted = items.sort((a, b) => {
+      if (a.type === b.type) return a.path.localeCompare(b.path);
+      return a.type === 'tree' ? -1 : 1;
+    });
+    
+    sorted.forEach(item => {
+      const parts = item.path.split('/');
+      const name = parts[parts.length - 1];
+      
+      if (parts.length === 1) {
+        // Root level
+        const node = {
+          name,
+          type: item.type === 'tree' ? 'folder' : 'file',
+          path: item.path,
+          children: item.type === 'tree' ? [] : undefined
+        };
+        tree.push(node);
+        pathMap[item.path] = node;
+      } else {
+        // Nested item
+        const parentPath = parts.slice(0, -1).join('/');
+        const parent = pathMap[parentPath];
+        
+        if (parent && parent.children) {
+          const node = {
+            name,
+            type: item.type === 'tree' ? 'folder' : 'file',
+            path: item.path,
+            children: item.type === 'tree' ? [] : undefined
+          };
+          parent.children.push(node);
+          pathMap[item.path] = node;
+        }
+      }
+    });
+    
+    setFileStructure(tree);
   };
 
   useEffect(() => {
@@ -143,17 +267,27 @@ export const NewProjectPage = () => {
               <button className="mobile-sidebar-close" onClick={() => setMobileSidebarOpen(false)}>✕</button>
             </div>
             <div className="voice-list">
-              {GITHUB_REPOS.map(repo => (
-                <VoiceCard
-                  key={repo.name}
-                  repo={repo}
-                  onSelect={() => {
-                    setGithubRepo(repo.url);
-                    setMobileSidebarOpen(false);
-                    githubInputRef.current?.focus();
-                  }}
-                />
-              ))}
+              {loadingRepos ? (
+                Array(6).fill(0).map((_, i) => (
+                  <Skeleton key={i} width="100%" height="80px" borderRadius="12px" style={{ marginBottom: '12px' }} />
+                ))
+              ) : githubRepos.length > 0 ? (
+                githubRepos.map(repo => (
+                  <VoiceCard
+                    key={repo.name}
+                    repo={repo}
+                    onSelect={() => {
+                      setGithubRepo(repo.url);
+                      setMobileSidebarOpen(false);
+                      githubInputRef.current?.focus();
+                    }}
+                  />
+                ))
+              ) : (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
+                  No repositories found
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -175,7 +309,7 @@ export const NewProjectPage = () => {
               </>
             ) : fetchingFiles ? null : (
               <div className="file-tree-container">
-                {MOCK_FILE_STRUCTURE.map((item, i) => (
+                {fileStructure.map((item, i) => (
                   <FileTreeItem key={i} item={item} onFileClick={(name) => console.log('Open file:', name)} />
                 ))}
               </div>
@@ -229,20 +363,30 @@ export const NewProjectPage = () => {
 
         <div className="tts-right-panel">
           <div className="voice-tabs">
-            <div className="voice-tab-title">Import from GitHub: Ayush91225</div>
+            <div className="voice-tab-title">Import from GitHub: {user?.username || 'User'}</div>
           </div>
 
           <div className="voice-list">
-            {GITHUB_REPOS.map(repo => (
-              <VoiceCard
-                key={repo.name}
-                repo={repo}
-                onSelect={() => {
-                  setGithubRepo(repo.url);
-                  githubInputRef.current?.focus();
-                }}
-              />
-            ))}
+            {loadingRepos ? (
+              Array(6).fill(0).map((_, i) => (
+                <Skeleton key={i} width="100%" height="80px" borderRadius="12px" style={{ marginBottom: '12px' }} />
+              ))
+            ) : githubRepos.length > 0 ? (
+              githubRepos.map(repo => (
+                <VoiceCard
+                  key={repo.name}
+                  repo={repo}
+                  onSelect={() => {
+                    setGithubRepo(repo.url);
+                    githubInputRef.current?.focus();
+                  }}
+                />
+              ))
+            ) : (
+              <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
+                No repositories found
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -1,0 +1,148 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  Environment:
+    Type: String
+    Default: prod
+  ProjectName:
+    Type: String
+    Default: vajraopz
+  SubnetIds:
+    Type: String
+  SecurityGroupId:
+    Type: String
+
+Globals:
+  Function:
+    Timeout: 900
+    MemorySize: 1024
+    Runtime: python3.11
+
+Resources:
+  # API Gateway
+  VajraOpzApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Environment
+      Cors:
+        AllowMethods: "'POST, OPTIONS'"
+        AllowHeaders: "'Content-Type, Authorization'"
+        AllowOrigin: "'*'"
+
+  # Main GraphQL API Lambda
+  GraphQLFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${Environment}-graphql"
+      CodeUri: api/
+      Handler: handler.lambda_handler
+      Environment:
+        Variables:
+          USERS_TABLE: !Sub "${ProjectName}-${Environment}-users"
+          PROJECTS_TABLE: !Sub "${ProjectName}-${Environment}-projects"
+          DEPLOYMENTS_TABLE: !Sub "${ProjectName}-${Environment}-deployments"
+          AGENT_RUNS_TABLE: !Sub "${ProjectName}-${Environment}-agent-runs"
+          S3_BUCKET: !Sub "${ProjectName}-${Environment}-code-storage"
+          ECS_CLUSTER: !Sub "${ProjectName}-${Environment}-agents"
+          GITHUB_CLIENT_ID_PARAM: !Sub "/${ProjectName}/${Environment}/github/client_id"
+          GITHUB_CLIENT_SECRET_PARAM: !Sub "/${ProjectName}/${Environment}/github/client_secret"
+          SUBNET_IDS: !Sub "${SubnetIds}"
+          SECURITY_GROUP_ID: !Sub "${SecurityGroupId}"
+      Events:
+        GraphQLApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref VajraOpzApi
+            Path: /graphql
+            Method: post
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Sub "${ProjectName}-${Environment}-*"
+        - S3CrudPolicy:
+            BucketName: !Sub "${ProjectName}-${Environment}-code-storage-*"
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+                - ssm:GetParameters
+              Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ProjectName}/${Environment}/*"
+            - Effect: Allow
+              Action:
+                - ecs:RunTask
+                - ecs:DescribeTasks
+              Resource: "*"
+
+  # ECS Task Definition for Agents
+  AgentTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub "${ProjectName}-${Environment}-agent"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: 2048
+      Memory: 4096
+      ExecutionRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/${ProjectName}-${Environment}-ecs-task-execution-role"
+      TaskRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/${ProjectName}-${Environment}-ecs-task-execution-role"
+      ContainerDefinitions:
+        - Name: agent
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ProjectName}-${Environment}-agent:latest"
+          Essential: true
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Sub "/ecs/${ProjectName}-${Environment}-agent"
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+          Environment:
+            - Name: S3_BUCKET
+              Value: !Sub "${ProjectName}-${Environment}-code-storage"
+            - Name: DYNAMODB_TABLE_PREFIX
+              Value: !Sub "${ProjectName}-${Environment}"
+
+  # CloudWatch Log Group
+  AgentLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/ecs/${ProjectName}-${Environment}-agent"
+      RetentionInDays: 7
+
+  # ECR Repository
+  AgentRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub "${ProjectName}-${Environment}-agent"
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "selection": {
+                  "tagStatus": "untagged",
+                  "countType": "sinceImagePushed",
+                  "countUnit": "days",
+                  "countNumber": 1
+                },
+                "action": {
+                  "type": "expire"
+                }
+              }
+            ]
+          }
+
+Outputs:
+  ApiUrl:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${VajraOpzApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/graphql"
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-api-url"
+
+  EcrRepository:
+    Description: "ECR Repository URI"
+    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ProjectName}-${Environment}-agent"
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-ecr-repo"

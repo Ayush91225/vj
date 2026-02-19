@@ -3,6 +3,7 @@ import { NAV_GROUPS } from '../../constants/navigation';
 import { SIDEBAR_WIDE, SIDEBAR_SLIM } from '../../constants';
 import { Tooltip } from '../ui/Tooltip';
 import { NavItem } from './NavItem';
+import { useAuthStore } from '../../store';
 import './Sidebar.css';
 
 export const Sidebar = ({ 
@@ -16,6 +17,8 @@ export const Sidebar = ({
   devOpen,
   setDevOpen 
 }) => {
+  const { user } = useAuthStore();
+
   const SidebarContent = ({ forceExpanded = false }) => {
     const showLabel = forceExpanded || !slim;
 
@@ -82,17 +85,25 @@ export const Sidebar = ({
 
         <div className={`sidebar-footer ${slim ? 'slim' : ''}`}>
           {slim ? (
-            <Tooltip label="NineOne152">
+            <Tooltip label={user?.username || 'User'}>
               <div className="user-avatar">
-                <User size={18} weight="regular" />
+                {user?.avatar_url ? (
+                  <img src={user.avatar_url} alt={user.username} style={{ width: '100%', height: '100%', borderRadius: '50%' }} />
+                ) : (
+                  <User size={18} weight="regular" />
+                )}
               </div>
             </Tooltip>
           ) : (
             <>
               <div className="user-avatar">
-                <User size={18} weight="regular" />
+                {user?.avatar_url ? (
+                  <img src={user.avatar_url} alt={user.username} style={{ width: '100%', height: '100%', borderRadius: '50%' }} />
+                ) : (
+                  <User size={18} weight="regular" />
+                )}
               </div>
-              {showLabel && <span className="user-name">NineOne152</span>}
+              {showLabel && <span className="user-name">{user?.username || 'User'}</span>}
             </>
           )}
         </div>
