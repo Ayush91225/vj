@@ -150,7 +150,7 @@ const MOCK_PROJECTS = [
 ];
 
 export const useProjectStore = create((set, get) => ({
-  projects: MOCK_PROJECTS,
+  projects: [],
   selectedProject: null,
   loading: false,
   error: null,
