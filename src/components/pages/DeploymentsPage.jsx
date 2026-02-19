@@ -1,63 +1,80 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Skeleton } from '../ui/Skeleton';
+import { useProjectStore } from '../../store';
+import { backendApi } from '../../services/backendApi';
 import './DeploymentsPage.css';
-
-const PROJECTS = [
-  { id: 'project-alpha', name: 'Project Alpha', label: 'Ayush91225', repo: 'https://github.com/Ayush91225/project-alpha' },
-  { id: 'project-beta', name: 'Project Beta', label: 'Ayush91225', repo: 'https://github.com/Ayush91225/project-beta' },
-  { id: 'project-gamma', name: 'Project Gamma', label: 'Ayush91225', repo: 'https://github.com/Ayush91225/project-gamma' },
-  { id: 'project-delta', name: 'Project Delta', label: 'Ayush91225', repo: 'https://github.com/Ayush91225/project-delta' },
-  { id: 'project-epsilon', name: 'Project Epsilon', label: 'Ayush91225', repo: 'https://github.com/Ayush91225/project-epsilon' },
-  { id: 'project-zeta', name: 'Project Zeta', label: 'Ayush91225', repo: 'https://github.com/Ayush91225/project-zeta' },
-];
-
-const DEPLOYMENTS = {
-  'project-alpha': [
-    { id: 1, commit: 'a3f2c1d', message: 'Fix: Resolved authentication bug', status: 'ready', time: '2h ago', duration: '4m 32s', branch: 'main' },
-    { id: 2, commit: 'b7e9f2a', message: 'Refactor: Improved code structure', status: 'ready', time: '1d ago', duration: '3m 45s', branch: 'main' },
-    { id: 3, commit: 'c9d4e1b', message: 'WIP: Testing new feature', status: 'error', time: '2d ago', duration: '2m 10s', branch: 'dev' },
-    { id: 4, commit: 'd2a8c5f', message: 'Feature: Added new dashboard', status: 'ready', time: '3d ago', duration: '5m 20s', branch: 'main' },
-  ],
-  'project-beta': [
-    { id: 1, commit: 'e5f3b9c', message: 'Hotfix: Critical security patch', status: 'ready', time: '5h ago', duration: '6m 15s', branch: 'main' },
-    { id: 2, commit: 'f1c7d4e', message: 'Update: Dependencies upgraded', status: 'ready', time: '3d ago', duration: '5m 30s', branch: 'main' },
-  ],
-};
 
 export const DeploymentsPage = ({ searchQuery }) => {
   const { projectId } = useParams();
   const navigate = useNavigate();
+  const { projects, fetchProjects, loading: projectsLoading } = useProjectStore();
+  const [commits, setCommits] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1500);
-    return () => clearTimeout(timer);
-  }, [projectId]);
+    fetchProjects();
+  }, []);
 
-  const filteredProjects = PROJECTS.filter(project => 
+  useEffect(() => {
+    if (!projectId) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchCommits = async () => {
+      setLoading(true);
+      const project = projects.find(p => p.id === projectId);
+      if (!project) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch('https://qz4k4nhlwfo4p3jdkzsxpdfksu0hwqir.lambda-url.ap-south-1.on.aws/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: `query GetCommits($githubRepo: String!, $branch: String) { getCommits(githubRepo: $githubRepo, branch: $branch) { sha message author date url } }`,
+            variables: { githubRepo: project.repo, branch: project.metadata.branchName || 'main' }
+          })
+        });
+        const result = await response.json();
+        if (result.data?.getCommits) {
+          setCommits(result.data.getCommits);
+        }
+      } catch (error) {
+        console.error('Failed to fetch commits:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCommits();
+  }, [projectId, projects]);
+
+  const filteredProjects = projects.filter(project => 
     !projectId && (
-      project.name.toLowerCase().includes((searchQuery || '').toLowerCase()) ||
+      project.amount.toLowerCase().includes((searchQuery || '').toLowerCase()) ||
       project.label.toLowerCase().includes((searchQuery || '').toLowerCase())
     )
   );
 
-  const displayProjects = projectId ? PROJECTS : filteredProjects;
+  const displayProjects = projectId ? projects : filteredProjects;
 
-  const selectedProject = PROJECTS.find(p => p.id === projectId);
-  const allDeployments = projectId ? DEPLOYMENTS[projectId] || [] : [];
+  const selectedProject = projects.find(p => p.id === projectId);
   
-  const filteredDeployments = allDeployments.filter(deployment =>
-    deployment.commit.toLowerCase().includes((searchQuery || '').toLowerCase()) ||
-    deployment.message.toLowerCase().includes((searchQuery || '').toLowerCase()) ||
-    deployment.branch.toLowerCase().includes((searchQuery || '').toLowerCase())
+  const filteredDeployments = commits.filter(commit =>
+    commit.sha.toLowerCase().includes((searchQuery || '').toLowerCase()) ||
+    commit.message.toLowerCase().includes((searchQuery || '').toLowerCase()) ||
+    commit.author.toLowerCase().includes((searchQuery || '').toLowerCase())
   );
 
   return (
     <div className="deployments-page">
       <div className="projects-scroll-container">
         <div className="projects-cards">
-          {loading ? (
+          {projectsLoading ? (
             Array(6).fill(0).map((_, i) => (
               <div key={i} className="project-card skeleton-card">
                 <Skeleton width="120px" height="32px" borderRadius="8px" />
@@ -71,7 +88,7 @@ export const DeploymentsPage = ({ searchQuery }) => {
                 className={`project-card ${projectId === project.id ? 'selected' : ''}`}
                 onClick={() => navigate(`/deploy/${project.id}`)}
               >
-                <div className="project-name">{project.name}</div>
+                <div className="project-name">{project.amount}</div>
                 <div className="project-label">{project.label}</div>
                 <a 
                   href={project.repo} 
@@ -91,7 +108,7 @@ export const DeploymentsPage = ({ searchQuery }) => {
       <div className="deployments-tabs">
         <div 
           className="deployments-tab active" 
-          onClick={() => projectId && navigate(`/deploy/${projectId}/${allDeployments[0]?.commit || 'production'}`)}
+          onClick={() => projectId && commits[0] && navigate(`/deploy/${projectId}/${commits[0].sha}`)}
           style={{ cursor: projectId ? 'pointer' : 'default' }}
         >
           Deployment History
@@ -145,26 +162,26 @@ export const DeploymentsPage = ({ searchQuery }) => {
               </div>
             ))
           ) : (
-            filteredDeployments.map(deployment => (
+            filteredDeployments.map(commit => (
               <div 
-                key={deployment.id} 
+                key={commit.sha} 
                 className="deployment-row"
-                onClick={() => navigate(`/deploy/${projectId}/${deployment.commit}`)}
+                onClick={() => navigate(`/deploy/${projectId}/${commit.sha}`)}
               >
                 <div className="deployment-left">
                   <div className="deployment-commit">
-                    <code className="commit-hash">{deployment.commit}</code>
-                    <span className="commit-message">{deployment.message}</span>
+                    <code className="commit-hash">{commit.sha.substring(0, 7)}</code>
+                    <span className="commit-message">{commit.message}</span>
                   </div>
                   <div className="deployment-info">
-                    <span className="deployment-branch">{deployment.branch}</span>
-                    <span className="deployment-time">{deployment.time}</span>
-                    <span className="deployment-duration">{deployment.duration}</span>
+                    <span className="deployment-branch">{selectedProject?.metadata.branchName || 'main'}</span>
+                    <span className="deployment-time">{new Date(commit.date).toLocaleDateString()}</span>
+                    <span className="deployment-duration">{commit.author}</span>
                   </div>
                 </div>
                 <div className="deployment-right">
-                  <span className={`status-dot ${deployment.status}`}></span>
-                  <span className="status-text">{deployment.status === 'ready' ? 'Ready' : 'Error'}</span>
+                  <span className="status-dot ready"></span>
+                  <span className="status-text">Ready</span>
                 </div>
               </div>
             ))
