@@ -487,11 +487,27 @@ def handle_get_deployment(variables: Dict[str, Any]) -> Dict[str, Any]:
 def handle_get_commits(variables: Dict[str, Any]) -> Dict[str, Any]:
     """Fetch commits from GitHub for a repository"""
     try:
+        user_id = _get_user_from_token(variables.get('token'))
         github_repo = variables.get('githubRepo')
         branch = variables.get('branch', 'main')
         
         if not github_repo:
             return create_response(400, {'errors': [{'message': 'Missing githubRepo'}]})
+        
+        # Get user's GitHub access token if authenticated
+        access_token = None
+        if user_id:
+            if IS_LOCAL:
+                user_data = _local_users.get(user_id)
+                if user_data:
+                    access_token = user_data.get('access_token')
+            else:
+                try:
+                    user = users_table.get_item(Key={'user_id': user_id})
+                    if 'Item' in user:
+                        access_token = user['Item'].get('access_token')
+                except Exception as e:
+                    print(f'[GetCommits] Failed to get user token: {e}')
         
         # Clean and extract owner and repo from URL
         repo_clean = github_repo.replace('https://github.com/', '').replace('http://github.com/', '')
@@ -505,15 +521,32 @@ def handle_get_commits(variables: Dict[str, Any]) -> Dict[str, Any]:
         
         print(f'[GetCommits] Fetching commits for {owner}/{repo} on branch {branch}')
         
-        # Fetch commits from GitHub API
+        # Prepare headers with auth token if available
+        headers = {'Accept': 'application/vnd.github.v3+json'}
+        if access_token:
+            headers['Authorization'] = f'token {access_token}'
+            print(f'[GetCommits] Using authenticated request')
+        
+        # Try the specified branch first
         response = requests.get(
             f'https://api.github.com/repos/{owner}/{repo}/commits',
             params={'sha': branch, 'per_page': 20},
-            headers={'Accept': 'application/vnd.github.v3+json'},
+            headers=headers,
             timeout=10
         )
         
         print(f'[GetCommits] GitHub API response status: {response.status_code}')
+        
+        # If branch not found, try default branch
+        if response.status_code == 404 and branch != 'main':
+            print(f'[GetCommits] Branch {branch} not found, trying main branch')
+            response = requests.get(
+                f'https://api.github.com/repos/{owner}/{repo}/commits',
+                params={'sha': 'main', 'per_page': 20},
+                headers=headers,
+                timeout=10
+            )
+            print(f'[GetCommits] Main branch response status: {response.status_code}')
         
         if not response.ok:
             error_msg = response.json().get('message', 'Unknown error') if response.text else 'Unknown error'
