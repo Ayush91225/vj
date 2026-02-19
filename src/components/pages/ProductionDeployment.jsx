@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useDeploymentStore, useProjectStore } from "../../store";
+import { backendApi } from "../../services/backendApi";
 import CodeDiff from "./CodeDiff";
 import "./ProductionDeployment.css";
 
@@ -174,6 +175,8 @@ export default function ProductionDeployment() {
   const [deploymentData, setDeploymentData] = useState(null);
   const [commits, setCommits] = useState([]);
   const [commitsOpen, setCommitsOpen] = useState(false);
+  const [backendFixes, setBackendFixes] = useState([]);
+  const [isFixing, setIsFixing] = useState(false);
   const readmeRef = useRef(null);
   const errorsRef = useRef(null);
   const cicdRef = useRef(null);
@@ -187,7 +190,7 @@ export default function ProductionDeployment() {
   const cicdRuns = deploymentState.cicdRuns || [];
   const totalFailures = deploymentState.totalFailures || 10;
 
-  const handleFix = (index, error, e) => {
+  const handleFix = async (index, error, e) => {
     e.stopPropagation();
     
     if (totalFixAttempts >= MAX_FIX_ATTEMPTS) {
@@ -196,31 +199,46 @@ export default function ProductionDeployment() {
     }
 
     if (failedButtons.includes(index)) {
-      setStoreFailedButtons(deployId, failedButtons.filter(x => x !== index));
+      setStoreFailedButtons(projectId, failedButtons.filter(x => x !== index));
     }
     
     setFixingIndex(index);
-    setTimeout(() => {
-      const success = Math.random() > 0.3;
-      incrementAttempts(deployId);
-      
-      if (success) {
-        addFixedIssue(deployId, {
-          id: index + 1,
-          file: error.file,
-          bugType: index < 2 ? "LINTING" : index < 4 ? "LOGIC" : "STYLE",
-          line: error.line,
-          message: error.message,
-          oldCode: error.oldCode,
-          newCode: error.newCode
-        });
-        setSettingsOpen(true);
-        setStoreFixedButtons(deployId, [...fixedButtons, index]);
-      } else {
-        setStoreFailedButtons(deployId, [...failedButtons, index]);
+    setIsFixing(true);
+    
+    try {
+      const token = backendApi.getToken();
+      if (!token) {
+        throw new Error('Not authenticated');
       }
+
+      // Trigger backend fix
+      const result = await backendApi.triggerFix(token, projectId);
+      console.log('[Fix] Backend response:', result);
+      
+      // Simulate processing time
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Mark as success
+      incrementAttempts(projectId);
+      addFixedIssue(projectId, {
+        id: index + 1,
+        file: error.file,
+        bugType: index < 2 ? "LINTING" : index < 4 ? "LOGIC" : "STYLE",
+        line: error.line,
+        message: error.message,
+        oldCode: error.oldCode,
+        newCode: error.newCode
+      });
+      setSettingsOpen(true);
+      setStoreFixedButtons(projectId, [...fixedButtons, index]);
+      
+    } catch (error) {
+      console.error('[Fix] Error:', error);
+      setStoreFailedButtons(projectId, [...failedButtons, index]);
+    } finally {
       setFixingIndex(null);
-    }, 3000);
+      setIsFixing(false);
+    }
   };
 
   useEffect(() => {
@@ -273,13 +291,24 @@ export default function ProductionDeployment() {
             setReadmeContent(atob(data.content));
           }
         }
+
+        // Fetch fixes from backend if deployment exists
+        try {
+          const fixes = await backendApi.getFixes(token, projectId);
+          if (fixes && fixes.length > 0) {
+            setBackendFixes(fixes);
+            console.log('[Fixes] Loaded from backend:', fixes);
+          }
+        } catch (error) {
+          console.log('[Fixes] No fixes found or error:', error);
+        }
       } catch (error) {
         console.error('Failed to fetch commits:', error);
       }
     };
 
     fetchCommits();
-  }, [selectedProject]);
+  }, [selectedProject, projectId]);
 
   if (!selectedProject || loading) {
     return (
@@ -450,124 +479,41 @@ export default function ProductionDeployment() {
               {totalFixAttempts}/{MAX_FIX_ATTEMPTS} attempts
             </span>
           )}
-          <button onClick={(e) => { e.stopPropagation(); setFixingIndex('all'); setTimeout(() => { const allErrors = [{ severity: "High", file: "src/components/Header.jsx", line: 23, message: "Unused variable 'userData'", oldCode: `const userData = getUserData();
-const [isOpen, setIsOpen] = useState(false);
-const [loading, setLoading] = useState(true);
-
-return (
-  <header className="header">
-    <h1>Dashboard</h1>
-    <button onClick={() => setIsOpen(!isOpen)}>
-      Menu
-    </button>
-  </header>
-);`, newCode: `const [isOpen, setIsOpen] = useState(false);
-const [loading, setLoading] = useState(true);
-
-return (
-  <header className="header">
-    <h1>Dashboard</h1>
-    <button onClick={() => setIsOpen(!isOpen)}>
-      Menu
-    </button>
-  </header>
-);` }, { severity: "High", file: "src/utils/api.js", line: 45, message: "Missing error handling", oldCode: `export async function fetchUserData(userId) {
-  const response = await fetch(\`/api/users/\${userId}\`);
-  const data = await response.json();
-  return data;
-}
-
-export async function updateUser(userId, updates) {
-  const response = await fetch(\`/api/users/\${userId}\`, {
-    method: 'PUT',
-    body: JSON.stringify(updates)
-  });
-  return response.json();
-}`, newCode: `export async function fetchUserData(userId) {
-  const response = await fetch(\`/api/users/\${userId}\`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch user data');
-  }
-  const data = await response.json();
-  return data;
-}
-
-export async function updateUser(userId, updates) {
-  const response = await fetch(\`/api/users/\${userId}\`, {
-    method: 'PUT',
-    body: JSON.stringify(updates)
-  });
-  if (!response.ok) {
-    throw new Error('Failed to update user');
-  }
-  return response.json();
-}` }, { severity: "Medium", file: "src/pages/Dashboard.jsx", line: 12, message: "Component should be memoized", oldCode: `function UserCard({ user, onUpdate }) {
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString();
-  };
-
-  return (
-    <div className="user-card">
-      <h3>{user.name}</h3>
-      <p>Email: {user.email}</p>
-      <p>Joined: {formatDate(user.createdAt)}</p>
-      <button onClick={() => onUpdate(user.id)}>
-        Update
-      </button>
-    </div>
-  );
-}`, newCode: `import { memo, useCallback } from 'react';
-
-const UserCard = memo(function UserCard({ user, onUpdate }) {
-  const formatDate = useCallback((date) => {
-    return new Date(date).toLocaleDateString();
-  }, []);
-
-  return (
-    <div className="user-card">
-      <h3>{user.name}</h3>
-      <p>Email: {user.email}</p>
-      <p>Joined: {formatDate(user.createdAt)}</p>
-      <button onClick={() => onUpdate(user.id)}>
-        Update
-      </button>
-    </div>
-  );
-});` }, { severity: "Medium", file: "src/hooks/useAuth.js", line: 8, message: "Potential memory leak", oldCode: `export function useAuth() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const subscription = authService.subscribe((newUser) => {
-      setUser(newUser);
-      setLoading(false);
-    });
-    
-    authService.checkAuth();
-  }, []);
-
-  return { user, loading };
-}`, newCode: `export function useAuth() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const subscription = authService.subscribe((newUser) => {
-      setUser(newUser);
-      setLoading(false);
-    });
-    
-    authService.checkAuth();
-    
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  return { user, loading };
-}` }, { severity: "Low", file: "src/styles/global.css", line: 156, message: "Unused CSS rule", oldCode: `.unused-class {
-  color: red;
-}`, newCode: `` }]; const fixedIndices = []; const failedIndices = []; allErrors.forEach((error, idx) => { const success = Math.random() > 0.3; if (success) { fixedIndices.push(idx); } else { failedIndices.push(idx); } }); const allIssues = allErrors.map((error, idx) => ({ id: idx+1, file: error.file, bugType: idx < 2 ? "LINTING" : idx < 4 ? "LOGIC" : "STYLE", line: error.line, message: error.message, oldCode: error.oldCode, newCode: error.newCode })); allIssues.filter((_, idx) => fixedIndices.includes(idx)).forEach(issue => addFixedIssue(deployId, issue)); setStoreFixedButtons(deployId, fixedIndices); setStoreFailedButtons(deployId, failedIndices); setStoreTotalAttempts(deployId, 5); setSettingsOpen(true); setFixingIndex(null); }, 3000); }} className="prod-icon-btn" style={{ background: fixedButtons.includes('all') ? "#dcfce7" : fixingIndex === 'all' ? "#9ca3af" : "#374151", color: fixedButtons.includes('all') ? "#166534" : "white", border: fixedButtons.includes('all') ? "1px solid #bbf7d0" : "none", marginLeft: "8px", position: "relative", overflow: "hidden", zIndex: 2, pointerEvents: fixingIndex === 'all' || fixedButtons.includes('all') || totalFixAttempts >= MAX_FIX_ATTEMPTS ? "none" : "auto", opacity: totalFixAttempts >= MAX_FIX_ATTEMPTS ? 0.5 : 1 }}>
+          <button onClick={async (e) => { 
+            e.stopPropagation(); 
+            if (fixingIndex === 'all' || fixedButtons.includes('all') || totalFixAttempts >= MAX_FIX_ATTEMPTS || isFixing) return;
+            
+            setFixingIndex('all');
+            setIsFixing(true);
+            
+            try {
+              const token = backendApi.getToken();
+              if (!token) throw new Error('Not authenticated');
+              
+              // Trigger backend fix for all issues
+              const result = await backendApi.triggerFix(token, projectId);
+              console.log('[Fix All] Backend response:', result);
+              
+              // Simulate processing
+              await new Promise(resolve => setTimeout(resolve, 3000));
+              
+              // Mock success for all errors
+              const allErrors = [{ severity: "High", file: "src/components/Header.jsx", line: 23, message: "Unused variable 'userData'", oldCode: `const userData = getUserData();\nconst [isOpen, setIsOpen] = useState(false);`, newCode: `const [isOpen, setIsOpen] = useState(false);` }, { severity: "High", file: "src/utils/api.js", line: 45, message: "Missing error handling", oldCode: `const response = await fetch(\`/api/users/\${userId}\`);`, newCode: `const response = await fetch(\`/api/users/\${userId}\`);\nif (!response.ok) throw new Error('Failed');` }];
+              
+              const fixedIndices = [0, 1, 2, 3, 4];
+              const allIssues = allErrors.map((error, idx) => ({ id: idx+1, file: error.file, bugType: idx < 2 ? "LINTING" : "LOGIC", line: error.line, message: error.message, oldCode: error.oldCode, newCode: error.newCode }));
+              
+              allIssues.forEach(issue => addFixedIssue(projectId, issue));
+              setStoreFixedButtons(projectId, fixedIndices);
+              setStoreTotalAttempts(projectId, 5);
+              setSettingsOpen(true);
+            } catch (error) {
+              console.error('[Fix All] Error:', error);
+            } finally {
+              setFixingIndex(null);
+              setIsFixing(false);
+            }
+          }} className="prod-icon-btn" style={{ background: fixedButtons.includes('all') ? "#dcfce7" : fixingIndex === 'all' ? "#9ca3af" : "#374151", color: fixedButtons.includes('all') ? "#166534" : "white", border: fixedButtons.includes('all') ? "1px solid #bbf7d0" : "none", marginLeft: "8px", position: "relative", overflow: "hidden", zIndex: 2, pointerEvents: fixingIndex === 'all' || fixedButtons.includes('all') || totalFixAttempts >= MAX_FIX_ATTEMPTS || isFixing ? "none" : "auto", opacity: totalFixAttempts >= MAX_FIX_ATTEMPTS ? 0.5 : 1 }}>
             {fixingIndex === 'all' && <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)", animation: "shimmer 1.5s infinite" }} />}
             {fixedButtons.includes('all') ? '✓ Fixed' : 'Fix All'}
           </button>

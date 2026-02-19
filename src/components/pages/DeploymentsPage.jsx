@@ -119,19 +119,7 @@ export const DeploymentsPage = ({ searchQuery }) => {
         </div>
       </div>
 
-      {!projectId ? (
-        <div className="empty-state">
-          <img 
-            src="https://dashboard.sarvam.ai/assets/empty-table.webp" 
-            alt="No project selected" 
-            className="empty-image"
-          />
-          <div className="empty-title">No project selected</div>
-          <div className="empty-desc">
-            Select a project to view its deployment history and details.
-          </div>
-        </div>
-      ) : loading || (projectId && commits.length === 0) ? (
+      {loading || (projectId && commits.length === 0) ? (
         <div className="deployments-list">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="deployment-row" style={{ cursor: 'default' }}>

@@ -119,5 +119,14 @@ export const GRAPHQL_QUERIES = {
         timestamp
       }
     }
+  `,
+
+  TRIGGER_FIX: `
+    mutation triggerFix($token: String!, $projectId: String!) {
+      triggerFix(token: $token, projectId: $projectId) {
+        status
+        message
+      }
+    }
   `
 };

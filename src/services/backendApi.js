@@ -94,6 +94,22 @@ class BackendApiService {
     return data.getCommits;
   }
 
+  async getFixes(token, deploymentId) {
+    const data = await this.graphqlRequest(GRAPHQL_QUERIES.GET_FIXES, {
+      token,
+      deploymentId
+    });
+    return data.getFixes;
+  }
+
+  async triggerFix(token, projectId) {
+    const data = await this.graphqlRequest(GRAPHQL_QUERIES.TRIGGER_FIX, {
+      token,
+      projectId
+    });
+    return data.triggerFix;
+  }
+
   // Utility methods
   isAuthenticated() {
     const token = this.getToken();
