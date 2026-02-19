@@ -33,7 +33,7 @@ export const DeploymentsPage = ({ searchQuery }) => {
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [projectId]);
 
   const filteredProjects = PROJECTS.filter(project => 
     !projectId && (

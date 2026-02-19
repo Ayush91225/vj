@@ -10,18 +10,25 @@ const ANALYSIS_STEPS = [
   { id: 6, text: 'Writing summary report...', duration: 2000 },
 ];
 
-export const AgentLoadingScreen = ({ onComplete }) => {
+const FIX_STEPS = [
+  { id: 1, text: 'Analyzing code issue...', duration: 800 },
+  { id: 2, text: 'Generating fix...', duration: 1200 },
+  { id: 3, text: 'Applying changes...', duration: 1000 },
+];
+
+export const AgentLoadingScreen = ({ onComplete, mode = 'full' }) => {
   const [currentStep, setCurrentStep] = useState(0);
+  const STEPS = mode === 'fix' ? FIX_STEPS : ANALYSIS_STEPS;
 
   useEffect(() => {
-    if (currentStep >= ANALYSIS_STEPS.length) {
-      setTimeout(() => onComplete(), 1000);
+    if (currentStep >= STEPS.length) {
+      setTimeout(() => onComplete(), 500);
       return;
     }
 
     const timer = setTimeout(() => {
       setCurrentStep(prev => prev + 1);
-    }, ANALYSIS_STEPS[currentStep].duration);
+    }, STEPS[currentStep].duration);
 
     return () => clearTimeout(timer);
   }, [currentStep, onComplete]);
@@ -35,10 +42,10 @@ export const AgentLoadingScreen = ({ onComplete }) => {
           <div className="spinner-ring"></div>
         </div>
         
-        <h2 className="loading-title">AI Agent Running</h2>
+        <h2 className="loading-title">{mode === 'fix' ? 'Fixing Issue' : 'AI Agent Running'}</h2>
         
         <div className="loading-steps">
-          {ANALYSIS_STEPS.map((step, index) => (
+          {STEPS.map((step, index) => (
             <div 
               key={step.id} 
               className={`loading-step ${index < currentStep ? 'completed' : ''} ${index === currentStep ? 'active' : ''}`}

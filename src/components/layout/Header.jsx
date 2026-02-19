@@ -8,6 +8,8 @@ export const Header = ({ activePage, isMobile, setMobileOpen, searchQuery, setSe
   const navigate = useNavigate();
   const location = useLocation();
   const isDeployWithProject = location.pathname.startsWith('/deploy/') && location.pathname !== '/deploy';
+  const pathSegments = location.pathname.split('/').filter(Boolean);
+  const isDeployWithId = pathSegments.length === 3 && pathSegments[0] === 'deploy';
 
   return (
     <>
@@ -43,7 +45,7 @@ export const Header = ({ activePage, isMobile, setMobileOpen, searchQuery, setSe
               </button>
             </>
           )}
-          {activePage === "deploy" && (
+          {activePage === "deploy" && !isDeployWithId && (
             <div className="search-bar">
               <MagnifyingGlass size={16} weight="regular" />
               <input 

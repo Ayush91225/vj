@@ -7,6 +7,7 @@ import { ProjectsPage } from './components/pages/ProjectsPage';
 import { DeploymentsPage } from './components/pages/DeploymentsPage';
 import { ComingSoon } from './components/pages/ComingSoon';
 import { VajraInfPage } from './components/pages/VajraInfPage';
+import { AuthPage } from './components/pages/AuthPage';
 import ProductionDeployment from './components/pages/ProductionDeployment';
 import { useResponsive } from './hooks/useResponsive';
 import { SIDEBAR_WIDE, SIDEBAR_SLIM, PAGE_META } from './constants';
@@ -78,7 +79,10 @@ function AppContent() {
 function App() {
   return (
     <BrowserRouter>
-      <AppContent />
+      <Routes>
+        <Route path="/auth" element={<AuthPage />} />
+        <Route path="/*" element={<AppContent />} />
+      </Routes>
     </BrowserRouter>
   );
 }

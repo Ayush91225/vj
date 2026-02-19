@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Folder, File, CaretRight, CaretDown } from 'phosphor-react';
 import { Skeleton } from '../ui/Skeleton';
 import { VoiceCard } from './VoiceCard';
@@ -49,6 +50,7 @@ const FileTreeItem = ({ item, level = 0, onFileClick }) => {
 };
 
 export const NewProjectPage = () => {
+  const navigate = useNavigate();
   const [voiceTab, setVoiceTab] = useState("Import from GitHub");
   const [loading, setLoading] = useState(true);
   const [githubRepo, setGithubRepo] = useState("");
@@ -79,7 +81,8 @@ export const NewProjectPage = () => {
   };
 
   const handleAgentComplete = () => {
-    setIsRunningAgent(false);
+    const randomId = Math.random().toString(36).substring(2, 15);
+    navigate(`/deploy/project-alpha/${randomId}`);
   };
 
   const handleFetch = () => {

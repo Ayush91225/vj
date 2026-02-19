@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import CodeDiff from "./CodeDiff";
 import "./ProductionDeployment.css";
 
@@ -72,26 +72,50 @@ const ChevronRightIcon = () => (
   </svg>
 );
 
-const WebsitePreview = () => (
+const WebsitePreview = () => {
+  const deploymentTimeMinutes = 2.57; // 2m 34s = 2.57 minutes
+  const commits = 18;
+  const issuesFixed = 10;
+  const issuesFailed = 0;
+  
+  const baseScore = 100;
+  const speedBonus = deploymentTimeMinutes < 5 ? 10 : 0;
+  const efficiencyPenalty = commits > 20 ? -2 * (commits - 20) : 0;
+  const qualityBonus = issuesFixed * 2;
+  const qualityPenalty = issuesFailed * -5;
+  const rawTotal = baseScore + speedBonus + efficiencyPenalty + qualityBonus + qualityPenalty;
+  const totalScore = Math.min(Math.max(rawTotal, 0), 100);
+  
+  return (
   <div style={{ width: "100%", height: "100%", background: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px", boxSizing: "border-box" }}>
-    <div style={{ fontSize: "64px", fontWeight: "300", color: "#111", lineHeight: 1, fontFamily: "'Season Mix', sans-serif", marginBottom: "6px" }}>85</div>
+    <div style={{ fontSize: "64px", fontWeight: "300", color: "#111", lineHeight: 1, fontFamily: "'Season Mix', sans-serif", marginBottom: "6px" }}>{totalScore}</div>
     <div style={{ fontSize: "13px", color: "#6b7280", fontWeight: "400", marginBottom: "32px", fontFamily: "'Matter', sans-serif" }}>Quality Score</div>
     
     <div style={{ width: "100%", maxWidth: "100%", paddingLeft: "16px", paddingRight: "16px", boxSizing: "border-box" }}>
-      {[{ label: "Critical", count: 0 }, { label: "High", count: 2 }, { label: "Medium", count: 5 }, { label: "Low", count: 3 }].map((issue, i) => (
+      {[
+        { label: "Base Score", count: baseScore, color: "#111" },
+        { label: "Speed Bonus", count: speedBonus, color: "#374151", show: speedBonus > 0 },
+        { label: "Efficiency Penalty", count: Math.abs(efficiencyPenalty), color: "#6b7280", show: efficiencyPenalty < 0 },
+        { label: "Quality Bonus", count: qualityBonus, color: "#4b5563", show: qualityBonus > 0 },
+        { label: "Quality Penalty", count: Math.abs(qualityPenalty), color: "#9ca3af", show: qualityPenalty < 0 },
+        { label: "Total Score", count: totalScore, color: "#111" }
+      ].filter(item => item.show !== false).map((item, i) => (
         <div key={i} style={{ marginBottom: "14px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-            <span style={{ fontSize: "12px", color: "#374151", fontWeight: "400", fontFamily: "'Matter', sans-serif" }}>{issue.label}</span>
-            <span style={{ fontSize: "12px", color: "#111", fontWeight: "500", fontFamily: "'Matter', sans-serif" }}>{issue.count}</span>
+            <span style={{ fontSize: "12px", color: "#374151", fontWeight: "400", fontFamily: "'Matter', sans-serif" }}>{item.label}</span>
+            <span style={{ fontSize: "12px", color: item.color, fontWeight: "500", fontFamily: "'Matter', sans-serif" }}>
+              {item.label.includes('Bonus') && item.count > 0 ? '+' : item.label.includes('Penalty') && item.count > 0 ? '-' : ''}{item.count}
+            </span>
           </div>
           <div style={{ height: "6px", background: "#f3f4f6", borderRadius: "3px", overflow: "hidden", width: "100%" }}>
-            <div style={{ width: `${issue.count * 10}%`, height: "100%", background: "#111", borderRadius: "3px", transition: "width 0.3s ease" }} />
+            <div style={{ width: `${(Math.abs(item.count) / 100) * 100}%`, height: "100%", background: item.color, borderRadius: "3px", transition: "width 0.3s ease" }} />
           </div>
         </div>
       ))}
     </div>
   </div>
 );
+};
 
 const AlertIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -108,23 +132,68 @@ const CheckIcon = () => (
 );
 
 export default function ProductionDeployment() {
-  const [settingsOpen, setSettingsOpen] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [readmeOpen, setReadmeOpen] = useState(false);
   const [errorsOpen, setErrorsOpen] = useState(false);
   const [fixedIssues, setFixedIssues] = useState([]);
+  const [fixingIndex, setFixingIndex] = useState(null);
+  const [fixedButtons, setFixedButtons] = useState([]);
+  const [failedButtons, setFailedButtons] = useState([]);
+  const [expandedErrors, setExpandedErrors] = useState([]);
+  const readmeRef = useRef(null);
+  const errorsRef = useRef(null);
+
+  useEffect(() => {
+    setTimeout(() => setLoading(false), 2000);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="production-deployment">
+        <div className="prod-header">
+          <div style={{ width: "250px", height: "32px", background: "#f3f4f6", borderRadius: "6px", position: "relative", overflow: "hidden" }}>
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)", animation: "shimmer 1.5s infinite" }} />
+          </div>
+          <div style={{ display: "flex", gap: "12px" }}>
+            <div style={{ width: "100px", height: "36px", background: "#f3f4f6", borderRadius: "6px", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)", animation: "shimmer 1.5s infinite" }} />
+            </div>
+            <div style={{ width: "100px", height: "36px", background: "#f3f4f6", borderRadius: "6px", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)", animation: "shimmer 1.5s infinite" }} />
+            </div>
+          </div>
+        </div>
+        <div className="prod-card">
+          <div className="prod-main">
+            <div className="prod-preview" style={{ position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)", animation: "shimmer 1.5s infinite" }} />
+            </div>
+            <div className="prod-info" style={{ gap: "20px" }}>
+              {[...Array(6)].map((_, i) => (
+                <div key={i} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{ width: "80px", height: "14px", background: "#f3f4f6", borderRadius: "4px", position: "relative", overflow: "hidden" }}>
+                    <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)", animation: "shimmer 1.5s infinite" }} />
+                  </div>
+                  <div style={{ width: "100%", height: "16px", background: "#f3f4f6", borderRadius: "4px", position: "relative", overflow: "hidden" }}>
+                    <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)", animation: "shimmer 1.5s infinite" }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="production-deployment">
       <div className="prod-header">
         <h1 className="prod-title">Production Deployment</h1>
         <div className="prod-actions">
-          {["Build Logs", "Runtime Logs"].map(label => (
-            <button key={label} className="prod-btn">{label}</button>
-          ))}
-          <button className="prod-btn">
-            <RefreshIcon />
-            Instant Rollback
-          </button>
+          <button className="prod-btn" onClick={() => { setReadmeOpen(!readmeOpen); setTimeout(() => readmeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }}>README.md</button>
+          <button className="prod-btn" onClick={() => { setErrorsOpen(!errorsOpen); setTimeout(() => errorsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }}>Code Issues</button>
         </div>
       </div>
 
@@ -201,7 +270,7 @@ export default function ProductionDeployment() {
           </div>
         </div>
 
-        <div className="prod-settings" onClick={() => setReadmeOpen(!readmeOpen)}>
+        <div ref={readmeRef} className="prod-settings" onClick={() => setReadmeOpen(!readmeOpen)}>
           <div style={{ transform: readmeOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}><ChevronRightIcon /></div>
           <BookIcon />
           <span className="prod-settings-text">README.md</span>
@@ -209,28 +278,29 @@ export default function ProductionDeployment() {
 
         {readmeOpen && (
           <div style={{ borderTop: "1px solid #f0f0f0", padding: "20px 32px", background: "#fafafa", fontSize: "13px", lineHeight: "1.6", color: "#374151" }}>
-            <pre style={{ fontFamily: "monospace", whiteSpace: "pre-wrap", margin: 0 }}>{`# TechHack 2025 - Innovation & Technology Hackathon
+            <pre style={{ fontFamily: "'Roboto Mono', monospace", whiteSpace: "pre-wrap", margin: 0 }}>{`# TechHack 2025 - Innovation & Technology Hackathon
 
-## 🚀 Project Overview
+## Project Overview
 A modern web application built for the TechHack 2025 hackathon.
 
-## 🛠️ Tech Stack
+## Tech Stack
 - Frontend: React.js, Vite
 - Deployment: Vercel
 
-## 👥 Team
+## Team
 - Team Leader: Swastik Patel
 - Developers: 4 team members`}</pre>
           </div>
         )}
 
-        <div className="prod-settings" onClick={() => setErrorsOpen(!errorsOpen)}>
-          <div style={{ transform: errorsOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}><ChevronRightIcon /></div>
+        <div ref={errorsRef} className="prod-settings" onClick={() => setErrorsOpen(!errorsOpen)} style={{ position: "relative", overflow: "hidden" }}>
+          {fixingIndex === 'all' && <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.2), transparent)", animation: "shimmer 1.5s infinite", zIndex: 0 }} />}
+          <div style={{ transform: errorsOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s", position: "relative", zIndex: 1 }}><ChevronRightIcon /></div>
           <AlertIcon />
           <span className="prod-settings-text">Code Issues</span>
           <span className="prod-badge">10 issues</span>
           <div style={{ flex: 1 }} />
-          <button onClick={(e) => { e.stopPropagation(); setFixedIssues([{ id: 1, file: "src/components/Header.jsx", bugType: "LINTING", line: 23, message: "Unused variable", oldCode: `const userData = getUserData();
+          <button onClick={(e) => { e.stopPropagation(); setFixingIndex('all'); setTimeout(() => { const allErrors = [{ severity: "High", file: "src/components/Header.jsx", line: 23, message: "Unused variable 'userData'", oldCode: `const userData = getUserData();
 const [isOpen, setIsOpen] = useState(false);
 const [loading, setLoading] = useState(true);
 
@@ -251,7 +321,7 @@ return (
       Menu
     </button>
   </header>
-);` }, { id: 2, file: "src/utils/api.js", bugType: "LOGIC", line: 45, message: "Missing error handling", oldCode: `export async function fetchUserData(userId) {
+);` }, { severity: "High", file: "src/utils/api.js", line: 45, message: "Missing error handling", oldCode: `export async function fetchUserData(userId) {
   const response = await fetch(\`/api/users/\${userId}\`);
   const data = await response.json();
   return data;
@@ -281,7 +351,7 @@ export async function updateUser(userId, updates) {
     throw new Error('Failed to update user');
   }
   return response.json();
-}` }, { id: 3, file: "src/pages/Dashboard.jsx", bugType: "PERFORMANCE", line: 12, message: "Component should be memoized", oldCode: `function UserCard({ user, onUpdate }) {
+}` }, { severity: "Medium", file: "src/pages/Dashboard.jsx", line: 12, message: "Component should be memoized", oldCode: `function UserCard({ user, onUpdate }) {
   const formatDate = (date) => {
     return new Date(date).toLocaleDateString();
   };
@@ -313,7 +383,7 @@ const UserCard = memo(function UserCard({ user, onUpdate }) {
       </button>
     </div>
   );
-});` }, { id: 4, file: "src/hooks/useAuth.js", bugType: "MEMORY", line: 8, message: "Potential memory leak", oldCode: `export function useAuth() {
+});` }, { severity: "Medium", file: "src/hooks/useAuth.js", line: 8, message: "Potential memory leak", oldCode: `export function useAuth() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -345,11 +415,17 @@ const UserCard = memo(function UserCard({ user, onUpdate }) {
   }, []);
 
   return { user, loading };
-}` }]); setSettingsOpen(true); }} className="prod-icon-btn" style={{ background: "#374151", color: "white", marginLeft: "8px" }}>Fix All</button>
+}` }, { severity: "Low", file: "src/styles/global.css", line: 156, message: "Unused CSS rule", oldCode: `.unused-class {
+  color: red;
+}`, newCode: `` }]; const fixedIndices = []; const failedIndices = []; allErrors.forEach((error, idx) => { const success = Math.random() > 0.3; if (success) { fixedIndices.push(idx); } else { failedIndices.push(idx); } }); const allIssues = allErrors.map((error, idx) => ({ id: idx+1, file: error.file, bugType: idx < 2 ? "LINTING" : idx < 4 ? "LOGIC" : "STYLE", line: error.line, message: error.message, oldCode: error.oldCode, newCode: error.newCode })); setFixedIssues(allIssues.filter((_, idx) => fixedIndices.includes(idx))); setFixedButtons(fixedIndices); setFailedButtons(failedIndices); setSettingsOpen(true); setFixingIndex(null); }, 3000); }} className="prod-icon-btn" style={{ background: fixedButtons.includes('all') ? "#dcfce7" : fixingIndex === 'all' ? "#9ca3af" : "#374151", color: fixedButtons.includes('all') ? "#166534" : "white", border: fixedButtons.includes('all') ? "1px solid #bbf7d0" : "none", marginLeft: "8px", position: "relative", overflow: "hidden", zIndex: 2, pointerEvents: fixingIndex === 'all' || fixedButtons.includes('all') ? "none" : "auto" }}>
+            {fixingIndex === 'all' && <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)", animation: "shimmer 1.5s infinite" }} />}
+            {fixedButtons.includes('all') ? '✓ Fixed' : 'Fix All'}
+          </button>
         </div>
 
         {errorsOpen && (
-          <div style={{ borderTop: "1px solid #f0f0f0", background: "#fefefe" }}>
+          <div style={{ borderTop: "1px solid #f0f0f0", background: "#fefefe", position: "relative", overflow: "hidden" }}>
+            {fixingIndex === 'all' && <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.15), transparent)", animation: "shimmer 1.5s infinite", zIndex: 0 }} />}
             {[{ severity: "High", file: "src/components/Header.jsx", line: 23, message: "Unused variable 'userData'", oldCode: `const userData = getUserData();
 const [isOpen, setIsOpen] = useState(false);
 const [loading, setLoading] = useState(true);
@@ -468,28 +544,42 @@ const UserCard = memo(function UserCard({ user, onUpdate }) {
 }` }, { severity: "Low", file: "src/styles/global.css", line: 156, message: "Unused CSS rule", oldCode: `.unused-class {
   color: red;
 }`, newCode: `` }].map((error, i) => (
-              <div key={i} className="prod-settings" style={{ borderBottom: i < 4 ? "1px solid #f0f0f0" : "none" }}>
-                <div style={{ minWidth: "60px", fontWeight: "600", fontSize: "12px" }}>{error.severity}</div>
-                <div style={{ minWidth: "200px", fontFamily: "monospace", fontSize: "12px" }}>{error.file}</div>
-                <div style={{ minWidth: "40px", fontSize: "12px" }}>L{error.line}</div>
-                <div style={{ flex: 1, fontSize: "13px" }}>{error.message}</div>
-                <button onClick={(e) => { e.stopPropagation(); setFixedIssues(prev => [...prev, { id: i+1, file: error.file, bugType: i < 2 ? "LINTING" : i < 4 ? "LOGIC" : "STYLE", line: error.line, message: error.message, oldCode: error.oldCode, newCode: error.newCode }]); setSettingsOpen(true); }} className="prod-icon-btn">Fix</button>
+              <div key={i} style={{ borderBottom: i < 4 ? "1px solid #f0f0f0" : "none" }}>
+                <div className="prod-settings" style={{ position: "relative", overflow: "hidden", cursor: failedButtons.includes(i) ? "pointer" : "default" }} onClick={() => failedButtons.includes(i) && setExpandedErrors(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])}>
+                  {fixingIndex === i && <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.15), transparent)", animation: "shimmer 1.5s infinite", zIndex: 0 }} />}
+                  {failedButtons.includes(i) && <div style={{ transform: expandedErrors.includes(i) ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s", position: "relative", zIndex: 1, marginRight: "8px" }}><ChevronRightIcon /></div>}
+                  <div style={{ minWidth: "60px", fontWeight: "600", fontSize: "12px", position: "relative", zIndex: 1 }}>{error.severity}</div>
+                  <div style={{ minWidth: "200px", fontFamily: "monospace", fontSize: "12px", position: "relative", zIndex: 1 }}>{error.file}</div>
+                  <div style={{ minWidth: "40px", fontSize: "12px", position: "relative", zIndex: 1 }}>L{error.line}</div>
+                  <div style={{ flex: 1, fontSize: "13px", position: "relative", zIndex: 1 }}>{error.message}</div>
+                  <button onClick={(e) => { e.stopPropagation(); if (failedButtons.includes(i)) { setFailedButtons(prev => prev.filter(x => x !== i)); } setFixingIndex(i); setTimeout(() => { const success = Math.random() > 0.3; if (success) { setFixedIssues(prev => [...prev, { id: i+1, file: error.file, bugType: i < 2 ? "LINTING" : i < 4 ? "LOGIC" : "STYLE", line: error.line, message: error.message, oldCode: error.oldCode, newCode: error.newCode }]); setSettingsOpen(true); setFixedButtons(prev => [...prev, i]); } else { setFailedButtons(prev => [...prev, i]); } setFixingIndex(null); }, 3000); }} className="prod-icon-btn" style={{ position: "relative", overflow: "hidden", background: fixedButtons.includes(i) ? "#dcfce7" : failedButtons.includes(i) ? "#fee2e2" : fixingIndex === i ? "#9ca3af" : "#fff", color: fixedButtons.includes(i) ? "#166534" : failedButtons.includes(i) ? "#991b1b" : "#6b7280", border: fixedButtons.includes(i) ? "1px solid #bbf7d0" : failedButtons.includes(i) ? "1px solid #fecaca" : "1px solid #e5e7eb", pointerEvents: fixingIndex === i || fixedButtons.includes(i) ? "none" : "auto" }}>
+                    {fixingIndex === i && <div style={{ position: "absolute", inset: 0, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)", animation: "shimmer 1.5s infinite" }} />}
+                    <span style={{ position: "relative", zIndex: 1 }}>{fixedButtons.includes(i) ? '✓ Fixed' : failedButtons.includes(i) ? '× Retry' : 'Fix'}</span>
+                  </button>
+                </div>
+                {failedButtons.includes(i) && expandedErrors.includes(i) && (
+                  <div style={{ padding: "12px 32px", background: "#fef2f2", borderTop: "1px solid #fecaca" }}>
+                    <div style={{ fontSize: "12px", color: "#991b1b", fontFamily: "'Matter', sans-serif" }}>
+                      <strong>Error:</strong> Failed to apply fix. The code structure may have changed or there might be syntax conflicts. Please review manually.
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
 
-        <div className="prod-settings" onClick={() => setSettingsOpen(!settingsOpen)}>
-          <div style={{ transform: settingsOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}><ChevronRightIcon /></div>
-          {fixedIssues.length > 0 ? <CheckIcon /> : <ListIcon />}
-          <span className="prod-settings-text">{fixedIssues.length > 0 ? "Fixes Applied" : "Fixes Table"}</span>
-          <span className="prod-badge" style={fixedIssues.length > 0 ? { background: "#dcfce7", color: "#166534", border: "1px solid #bbf7d0" } : {}}>{fixedIssues.length > 0 ? `${fixedIssues.length} fixed` : "4 pending"}</span>
-        </div>
+        {fixedIssues.length > 0 && (
+          <>
+            <div className="prod-settings" onClick={() => setSettingsOpen(!settingsOpen)}>
+              <div style={{ transform: settingsOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}><ChevronRightIcon /></div>
+              <CheckIcon />
+              <span className="prod-settings-text">Fixes Applied</span>
+              <span className="prod-badge" style={{ background: "#dcfce7", color: "#166534", border: "1px solid #bbf7d0" }}>{fixedIssues.length} fixed</span>
+            </div>
 
-        {settingsOpen && (
-          <div style={{ borderTop: "1px solid #f0f0f0", background: "#fefefe", padding: "16px 32px" }}>
-            {fixedIssues.length > 0 ? (
-              <>
+            {settingsOpen && (
+              <div style={{ borderTop: "1px solid #f0f0f0", background: "#fefefe", padding: "16px 32px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "200px 120px 80px 300px 80px", gap: "12px", padding: "12px 0", borderBottom: "2px solid #e5e7eb", fontSize: "12px", fontWeight: "600", color: "#6b7280" }}>
                   <div>File</div><div>Bug Type</div><div>Line</div><div>Commit Message</div><div>Status</div>
                 </div>
@@ -507,139 +597,9 @@ const UserCard = memo(function UserCard({ user, onUpdate }) {
                     </div>
                   </div>
                 ))}
-              </>
-            ) : (
-              <>
-                <div style={{ display: "grid", gridTemplateColumns: "200px 100px 60px 1fr 80px", gap: "16px", padding: "12px 0", borderBottom: "2px solid #e5e7eb", fontSize: "11px", fontWeight: "600", color: "#6b7280" }}>
-                  <div>File</div><div>Bug Type</div><div>Line</div><div>Message</div><div>Status</div>
-                </div>
-                {[{ file: "src/components/Header.jsx", bugType: "LINTING", line: 23, message: "Unused variable", status: "Pending", oldCode: `const userData = getUserData();
-const [isOpen, setIsOpen] = useState(false);
-const [loading, setLoading] = useState(true);
-
-return (
-  <header className="header">
-    <h1>Dashboard</h1>
-    <button onClick={() => setIsOpen(!isOpen)}>
-      Menu
-    </button>
-  </header>
-);`, newCode: `const [isOpen, setIsOpen] = useState(false);
-const [loading, setLoading] = useState(true);
-
-return (
-  <header className="header">
-    <h1>Dashboard</h1>
-    <button onClick={() => setIsOpen(!isOpen)}>
-      Menu
-    </button>
-  </header>
-);` }, { file: "src/utils/api.js", bugType: "LOGIC", line: 45, message: "Missing error handling", status: "Pending", oldCode: `export async function fetchUserData(userId) {
-  const response = await fetch(\`/api/users/\${userId}\`);
-  const data = await response.json();
-  return data;
-}
-
-export async function updateUser(userId, updates) {
-  const response = await fetch(\`/api/users/\${userId}\`, {
-    method: 'PUT',
-    body: JSON.stringify(updates)
-  });
-  return response.json();
-}`, newCode: `export async function fetchUserData(userId) {
-  const response = await fetch(\`/api/users/\${userId}\`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch user data');
-  }
-  const data = await response.json();
-  return data;
-}
-
-export async function updateUser(userId, updates) {
-  const response = await fetch(\`/api/users/\${userId}\`, {
-    method: 'PUT',
-    body: JSON.stringify(updates)
-  });
-  if (!response.ok) {
-    throw new Error('Failed to update user');
-  }
-  return response.json();
-}` }, { file: "src/pages/Dashboard.jsx", bugType: "PERFORMANCE", line: 12, message: "Component should be memoized", status: "Pending", oldCode: `function UserCard({ user, onUpdate }) {
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString();
-  };
-
-  return (
-    <div className="user-card">
-      <h3>{user.name}</h3>
-      <p>Email: {user.email}</p>
-      <p>Joined: {formatDate(user.createdAt)}</p>
-      <button onClick={() => onUpdate(user.id)}>
-        Update
-      </button>
-    </div>
-  );
-}`, newCode: `import { memo, useCallback } from 'react';
-
-const UserCard = memo(function UserCard({ user, onUpdate }) {
-  const formatDate = useCallback((date) => {
-    return new Date(date).toLocaleDateString();
-  }, []);
-
-  return (
-    <div className="user-card">
-      <h3>{user.name}</h3>
-      <p>Email: {user.email}</p>
-      <p>Joined: {formatDate(user.createdAt)}</p>
-      <button onClick={() => onUpdate(user.id)}>
-        Update
-      </button>
-    </div>
-  );
-});` }, { file: "src/hooks/useAuth.js", bugType: "MEMORY", line: 8, message: "Potential memory leak", status: "Pending", oldCode: `export function useAuth() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const subscription = authService.subscribe((newUser) => {
-      setUser(newUser);
-      setLoading(false);
-    });
-    
-    authService.checkAuth();
-  }, []);
-
-  return { user, loading };
-}`, newCode: `export function useAuth() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const subscription = authService.subscribe((newUser) => {
-      setUser(newUser);
-      setLoading(false);
-    });
-    
-    authService.checkAuth();
-    
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  return { user, loading };
-}` }].map((fix, i) => (
-                  <div key={i} style={{ display: "grid", gridTemplateColumns: "200px 100px 60px 1fr 80px", gap: "16px", padding: "14px 0", borderBottom: i < 3 ? "1px solid #f1f5f9" : "none", fontSize: "13px", alignItems: "center" }}>
-                    <div style={{ fontFamily: "monospace", fontSize: "12px" }}>{fix.file}</div>
-                    <div style={{ background: "#f3f4f6", padding: "4px 8px", borderRadius: "6px", fontSize: "11px", textAlign: "center" }}>{fix.bugType}</div>
-                    <div style={{ fontFamily: "monospace" }}>L{fix.line}</div>
-                    <div>{fix.message}</div>
-                    <button onClick={(e) => { e.stopPropagation(); setFixedIssues(prev => [...prev, { id: i+1, file: fix.file, bugType: fix.bugType, line: fix.line, message: fix.message, oldCode: fix.oldCode, newCode: fix.newCode }]); }} className="prod-icon-btn">Fix</button>
-                  </div>
-                ))}
-              </>
+              </div>
             )}
-          </div>
+          </>
         )}
       </div>
     </div>
