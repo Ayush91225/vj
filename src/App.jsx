@@ -7,6 +7,7 @@ import { ProjectsPage } from './components/pages/ProjectsPage';
 import { DeploymentsPage } from './components/pages/DeploymentsPage';
 import { ComingSoon } from './components/pages/ComingSoon';
 import { VajraInfPage } from './components/pages/VajraInfPage';
+import ProductionDeployment from './components/pages/ProductionDeployment';
 import { useResponsive } from './hooks/useResponsive';
 import { SIDEBAR_WIDE, SIDEBAR_SLIM, PAGE_META } from './constants';
 import './App.css';
@@ -56,6 +57,7 @@ function AppContent() {
             <Route path="/home" element={<Navigate to="/project" replace />} />
             <Route path="/deploy" element={<DeploymentsPage searchQuery={searchQuery} />} />
             <Route path="/deploy/:projectId" element={<DeploymentsPage searchQuery={searchQuery} />} />
+            <Route path="/deploy/:projectId/:deploymentId" element={<ProductionDeployment />} />
             <Route path="/vision" element={<Navigate to="/deploy" replace />} />
             <Route path="/stt" element={<ComingSoon label={PAGE_META.stt?.title || ""} />} />
             <Route path="/trans" element={<ComingSoon label={PAGE_META.trans?.title || ""} />} />

@@ -89,7 +89,13 @@ export const DeploymentsPage = ({ searchQuery }) => {
       </div>
 
       <div className="deployments-tabs">
-        <div className="deployments-tab active">Deployment History</div>
+        <div 
+          className="deployments-tab active" 
+          onClick={() => projectId && navigate(`/deploy/${projectId}/${allDeployments[0]?.commit || 'production'}`)}
+          style={{ cursor: projectId ? 'pointer' : 'default' }}
+        >
+          Deployment History
+        </div>
       </div>
 
       {!projectId ? (
@@ -119,7 +125,11 @@ export const DeploymentsPage = ({ searchQuery }) => {
       ) : (
         <div className="deployments-list">
           {filteredDeployments.map(deployment => (
-            <div key={deployment.id} className="deployment-row">
+            <div 
+              key={deployment.id} 
+              className="deployment-row"
+              onClick={() => navigate(`/deploy/${projectId}/${deployment.commit}`)}
+            >
               <div className="deployment-left">
                 <div className="deployment-commit">
                   <code className="commit-hash">{deployment.commit}</code>

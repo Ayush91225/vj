@@ -1,12 +1,15 @@
-import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
-import 'react-circular-progressbar/dist/styles.css';
 import './ProjectMetadata.css';
 
 export const ProjectMetadata = ({ project }) => {
   const { metadata } = project;
   
-  // Cap total score at 100
   const displayScore = Math.min(metadata.totalScore, 100);
+  const issues = [
+    { label: "Critical", count: 0 },
+    { label: "High", count: 2 },
+    { label: "Medium", count: 5 },
+    { label: "Low", count: 3 }
+  ];
 
   return (
     <div className="project-metadata">
@@ -82,35 +85,22 @@ export const ProjectMetadata = ({ project }) => {
         <div className="meta-col-side">
           <div className="score-section">
             <div className="score-label">Total Score</div>
-            <div className="score-chart-wrapper">
-              <CircularProgressbar
-                value={displayScore}
-                text={`${displayScore}`}
-                styles={buildStyles({
-                  textSize: '28px',
-                  pathColor: displayScore >= 100 ? '#10b981' : '#4f46e5',
-                  textColor: '#111',
-                  trailColor: '#f0f0f0',
-                  pathTransitionDuration: 0.5,
-                })}
-              />
-            </div>
+            <div className="score-number">{displayScore}</div>
             <div className="score-max">out of 100</div>
           </div>
 
           <div className="score-breakdown">
-            <div className="breakdown-row">
-              <span className="breakdown-label">Base Score</span>
-              <span className="breakdown-value">{metadata.baseScore}</span>
-            </div>
-            <div className="breakdown-row positive">
-              <span className="breakdown-label">Speed Bonus</span>
-              <span className="breakdown-value">+{metadata.speedBonus}</span>
-            </div>
-            <div className="breakdown-row negative">
-              <span className="breakdown-label">Efficiency Penalty</span>
-              <span className="breakdown-value">{metadata.efficiencyPenalty}</span>
-            </div>
+            {issues.map((issue, i) => (
+              <div key={i} className="breakdown-row" style={{ marginBottom: "14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                  <span className="breakdown-label">{issue.label}</span>
+                  <span className="breakdown-value">{issue.count}</span>
+                </div>
+                <div style={{ height: "6px", background: "#f3f4f6", borderRadius: "3px", overflow: "hidden", width: "100%" }}>
+                  <div style={{ width: `${issue.count * 10}%`, height: "100%", background: "#111", borderRadius: "3px", transition: "width 0.3s ease" }} />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

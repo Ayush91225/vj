@@ -178,14 +178,17 @@
   font-family: 'Matter', sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
   font-weight: 500;
 }
 
-.score-chart-wrapper {
-  width: 140px;
-  height: 140px;
-  margin-bottom: 12px;
+.score-number {
+  font-size: 64px;
+  font-weight: 300;
+  color: #111;
+  line-height: 1;
+  font-family: 'Season Mix', sans-serif;
+  margin-bottom: 8px;
 }
 
 .score-max {
@@ -197,37 +200,23 @@
 .score-breakdown {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
+  width: 100%;
 }
 
 .breakdown-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: #fafafa;
-  border: 1px solid #f0f0f0;
-  border-radius: 8px;
   font-family: 'Matter', sans-serif;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .breakdown-label {
-  color: #6b7280;
+  color: #374151;
   font-weight: 400;
 }
 
 .breakdown-value {
-  font-weight: 600;
+  font-weight: 500;
   color: #111;
-}
-
-.breakdown-row.positive .breakdown-value {
-  color: #16a34a;
-}
-
-.breakdown-row.negative .breakdown-value {
-  color: #dc2626;
 }
 
 @media (max-width: 1024px) {
