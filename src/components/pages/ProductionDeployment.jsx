@@ -166,8 +166,9 @@ export default function ProductionDeployment() {
   const [expandedErrors, setExpandedErrors] = useState([]);
   const [limitModal, setLimitModal] = useState(false);
   const [readmeContent, setReadmeContent] = useState('');
-  const [repoUrl, setRepoUrl] = useState('github.com/dhaual125/tech-hack');
-  const [branchName, setBranchName] = useState('TEAM_ALPHA_AYUSH_AI_Fix');
+  const [repoUrl, setRepoUrl] = useState('');
+  const [branchName, setBranchName] = useState('');
+  const [deploymentData, setDeploymentData] = useState(null);
   const readmeRef = useRef(null);
   const errorsRef = useRef(null);
   const cicdRef = useRef(null);
@@ -217,7 +218,71 @@ export default function ProductionDeployment() {
   };
 
   useEffect(() => {
-    setTimeout(() => setLoading(false), 2000);
+    const fetchDeployment = async () => {
+      try {
+        const token = localStorage.getItem('vajraopz_token');
+        if (!token || !deploymentId) {
+          setLoading(false);
+          return;
+        }
+
+        const response = await fetch('https://qz4k4nhlwfo4p3jdkzsxpdfksu0hwqir.lambda-url.ap-south-1.on.aws/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: `query GetDeployment($token: String!, $deploymentId: String!) {
+              getDeployment(token: $token, deploymentId: $deploymentId) {
+                deployment_id
+                project_id
+                status
+              }
+            }`,
+            variables: { token, deploymentId }
+          })
+        });
+
+        const result = await response.json();
+        if (result.data?.getDeployment) {
+          const deployment = result.data.getDeployment;
+          setDeploymentData(deployment);
+
+          // Fetch project details
+          const projectResponse = await fetch('https://qz4k4nhlwfo4p3jdkzsxpdfksu0hwqir.lambda-url.ap-south-1.on.aws/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              query: `query GetProjects($token: String!) { getProjects(token: $token) { project_id github_repo team_name team_leader branch_name } }`,
+              variables: { token }
+            })
+          });
+
+          const projectResult = await projectResponse.json();
+          const project = projectResult.data?.getProjects?.find(p => p.project_id === deployment.project_id);
+          
+          if (project) {
+            setRepoUrl(project.github_repo.replace('https://', ''));
+            setBranchName(project.branch_name);
+
+            // Fetch README
+            const match = project.github_repo.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+            if (match) {
+              const [, owner, repo] = match;
+              const readmeResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/readme`);
+              if (readmeResponse.ok) {
+                const data = await readmeResponse.json();
+                setReadmeContent(atob(data.content));
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch deployment:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDeployment();
     
     if (cicdRuns.length === 0) {
       const initialRuns = [
@@ -228,26 +293,7 @@ export default function ProductionDeployment() {
       initialRuns.forEach(run => addCicdRun(deployId, run));
       setTotalFailures(deployId, 10);
     }
-
-    // Fetch real README from GitHub
-    const fetchReadme = async () => {
-      if (!repoUrl) return;
-      try {
-        const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
-        if (!match) return;
-        const [, owner, repo] = match;
-        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/readme`);
-        if (response.ok) {
-          const data = await response.json();
-          const content = atob(data.content);
-          setReadmeContent(content);
-        }
-      } catch (error) {
-        console.error('Failed to fetch README:', error);
-      }
-    };
-    fetchReadme();
-  }, [repoUrl]);
+  }, [deploymentId]);
 
   if (loading) {
     return (
