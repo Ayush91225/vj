@@ -1,0 +1,71 @@
+.select-container {
+  position: relative;
+}
+
+.select-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 15px;
+  color: #222;
+  cursor: pointer;
+  font-family: 'Matter', sans-serif;
+  gap: 10px;
+  transition: all 0.15s;
+}
+
+.select-button:hover {
+  border-color: #d1d5db;
+}
+
+.select-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.model-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4ade80, #22d3ee);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.select-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 200;
+  overflow: hidden;
+}
+
+.select-option {
+  padding: 13px 16px;
+  font-size: 15px;
+  cursor: pointer;
+  color: #333;
+  background: transparent;
+  transition: background 0.15s;
+  font-family: 'Matter', sans-serif;
+}
+
+.select-option.active {
+  color: #4f46e5;
+  background: #eef2ff;
+}
+
+.select-option:hover:not(.active) {
+  background: #f8f8f8;
+}

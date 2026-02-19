@@ -1,0 +1,267 @@
+.vajrainf-page {
+  flex: 1;
+  overflow-y: auto;
+  background: #fff;
+  padding: 120px 100px 200px;
+  display: flex;
+  justify-content: center;
+}
+
+.blog-content {
+  max-width: 800px;
+  width: 100%;
+}
+
+.blog-header {
+  margin-bottom: 120px;
+}
+
+.header-badge {
+  display: inline-block;
+  padding: 6px 16px;
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  font-family: 'Matter', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 32px;
+}
+
+.blog-header h1 {
+  font-family: 'Season Mix', sans-serif;
+  font-size: 80px;
+  font-weight: 700;
+  color: #111;
+  margin: 0 0 24px 0;
+  line-height: 0.95;
+  letter-spacing: -3px;
+}
+
+.blog-subtitle {
+  font-family: 'Matter', sans-serif;
+  font-size: 20px;
+  color: #999;
+  margin: 0 0 48px 0;
+  font-weight: 300;
+  letter-spacing: -0.2px;
+}
+
+.cta-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px;
+  background: #111;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  font-family: 'Matter', sans-serif;
+  font-size: 15px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cta-button:hover {
+  background: #000;
+  transform: translateY(-1px);
+}
+
+.blog-section {
+  margin-bottom: 120px;
+}
+
+.intro-section h2,
+.features-section h2,
+.benefits-section h2 {
+  font-family: 'Season Mix', sans-serif;
+  font-size: 40px;
+  font-weight: 600;
+  color: #111;
+  margin: 0 0 40px 0;
+  letter-spacing: -1px;
+}
+
+.large-text {
+  font-family: 'Matter', sans-serif;
+  font-size: 24px;
+  line-height: 1.5;
+  color: #111;
+  margin: 0 0 32px 0;
+  font-weight: 300;
+  letter-spacing: -0.3px;
+}
+
+.blog-section p {
+  font-family: 'Matter', sans-serif;
+  font-size: 18px;
+  line-height: 1.7;
+  color: #666;
+  margin: 0;
+  font-weight: 300;
+}
+
+.feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.feature-item {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+  padding-bottom: 48px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.feature-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.feature-icon-minimal {
+  width: 56px;
+  height: 56px;
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #111;
+  flex-shrink: 0;
+}
+
+.feature-content h3 {
+  font-family: 'Season Mix', sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  color: #111;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.5px;
+}
+
+.feature-content p {
+  font-family: 'Matter', sans-serif;
+  font-size: 17px;
+  line-height: 1.6;
+  color: #666;
+  margin: 0;
+  font-weight: 300;
+}
+
+.benefits-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+.benefit-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  transition: none;
+  cursor: default;
+}
+
+.benefit-item:hover {
+  background: transparent;
+  transform: none;
+}
+
+.benefit-item svg {
+  color: #111;
+  flex-shrink: 0;
+}
+
+.benefit-item span {
+  font-family: 'Matter', sans-serif;
+  font-size: 17px;
+  color: #111;
+  font-weight: 300;
+}
+
+.cta-section {
+  margin-bottom: 80px;
+}
+
+.cta-box {
+  background: #ffffff;
+  padding: 80px 60px;
+  border-radius: 20px;
+  text-align: center;
+ 
+
+}
+
+.cta-box h2 {
+  font-family: 'Season Mix', sans-serif;
+  font-size: 44px;
+  font-weight: 600;
+  color: #111;
+  margin: 0 0 20px 0;
+  letter-spacing: -1px;
+}
+
+.cta-box p {
+  font-family: 'Matter', sans-serif;
+  font-size: 18px;
+  color: #666;
+  margin: 0 0 48px 0;
+  font-weight: 300;
+}
+
+.cta-button-large {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 36px;
+  background: #111;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  font-family: 'Matter', sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cta-button-large:hover {
+  background: #000;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .vajrainf-page {
+    padding: 80px 32px 140px;
+  }
+
+  .blog-header h1 {
+    font-size: 52px;
+  }
+
+  .blog-subtitle {
+    font-size: 18px;
+  }
+
+  .feature-item {
+    gap: 20px;
+  }
+
+  .cta-box {
+    padding: 60px 24px;
+  }
+
+  .cta-box h2 {
+    font-size: 36px;
+  }
+}

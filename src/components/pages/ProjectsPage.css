@@ -1,0 +1,161 @@
+.billing-page {
+  padding: 32px 40px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.credits-scroll-container {
+  margin-bottom: 32px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.credits-cards {
+  display: flex;
+  gap: 20px;
+  padding-bottom: 8px;
+}
+
+.credits-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 32px;
+  min-width: 320px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.credits-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.credits-amount {
+  font-family: 'Season Mix', sans-serif;
+  font-size: 28px;
+  font-weight: 400;
+  color: #111;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+}
+
+.credits-label {
+  font-size: 15px;
+  color: #6b7280;
+  margin-bottom: 16px;
+  font-weight: 300;
+  font-family: 'Matter', sans-serif;
+  letter-spacing: 0.5px;
+}
+
+.repo-link {
+  font-size: 13px;
+  color: #4f46e5;
+  text-decoration: none;
+  font-family: 'Matter', sans-serif;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  transition: color 0.2s;
+}
+
+.repo-link:hover {
+  color: #4338ca;
+  text-decoration: underline;
+}
+
+.billing-tabs {
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 0;
+  background: #fff;
+  padding: 0 32px;
+  border-radius: 16px 16px 0 0;
+}
+
+.billing-tab {
+  display: inline-block;
+  font-size: 15px;
+  font-weight: 300;
+  color: #111;
+  padding: 18px 0;
+  border-bottom: 2px solid #4f46e5;
+  margin-bottom: -1px;
+  cursor: pointer;
+  font-family: 'Matter', sans-serif;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80px 20px;
+  background: #fff;
+  border-radius: 0 0 16px 16px;
+}
+
+.empty-image {
+  width: 160px;
+  height: auto;
+  opacity: 0.9;
+}
+
+.empty-title {
+  font-size: 22px;
+  font-weight: 300;
+  color: #111;
+  margin-top: 32px;
+  margin-bottom: 12px;
+  text-align: center;
+  font-family: 'Season Mix', sans-serif;
+}
+
+.empty-desc {
+  font-size: 15px;
+  color: #9ca3af;
+  text-align: center;
+  max-width: 420px;
+  line-height: 1.7;
+  font-family: 'Matter', sans-serif;
+  font-weight: 300;
+}
+
+@media (max-width: 768px) {
+  .billing-page {
+    padding: 16px;
+  }
+  
+  .credits-amount {
+    font-size: 40px;
+  }
+}
+
+@media (max-width: 600px) {
+  .billing-page {
+    padding: 12px;
+  }
+  
+  .credits-card {
+    padding: 20px 24px;
+  }
+  
+  .credits-amount {
+    font-size: 36px;
+  }
+  
+  .billing-tabs {
+    padding: 0 16px;
+  }
+}

@@ -1,0 +1,15 @@
+@font-face {
+  font-family: 'Season Mix';
+  src: url('./assets/fonts/seasonmix/SeasonMix-TRIAL-Light.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Matter';
+  src: url('./assets/fonts/matter/Matter-TRIAL-Light.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}

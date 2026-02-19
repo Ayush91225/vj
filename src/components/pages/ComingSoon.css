@@ -1,0 +1,23 @@
+.coming-soon {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #bbb;
+  padding: 40px;
+}
+
+.coming-soon-title {
+  font-size: 22px;
+  font-weight: 300;
+  color: #999;
+  font-family: 'Season Mix', sans-serif;
+}
+
+.coming-soon-desc {
+  font-size: 16px;
+  color: #bbb;
+  font-family: 'Matter', sans-serif;
+}

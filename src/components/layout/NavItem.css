@@ -1,0 +1,45 @@
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  font-size: 15px;
+  font-weight: 400;
+  color: #555;
+  background: transparent;
+  border-radius: 10px;
+  margin: 2px 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.13s;
+  white-space: nowrap;
+  overflow: hidden;
+  font-family: 'Matter', sans-serif;
+}
+
+.nav-item.slim {
+  padding: 11px;
+  margin: 3px 10px;
+  justify-content: center;
+  gap: 0;
+}
+
+.nav-item.active {
+  font-weight: 500;
+  color: #4f46e5;
+  background: #eef2ff;
+}
+
+.nav-item:not(.active):hover {
+  background: #f9fafb;
+}
+
+.nav-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.nav-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
