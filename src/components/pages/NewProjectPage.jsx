@@ -119,6 +119,10 @@ export const NewProjectPage = () => {
     setIsRunningAgent(true);
     
     try {
+      // Extract repo name from URL
+      const match = githubRepo.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+      const repoName = match ? match[2] : 'unknown-repo';
+      
       // Create project in backend
       const token = backendApi.getToken();
       const project = await backendApi.createProject(token, githubRepo, teamName, teamLeader);
@@ -126,8 +130,8 @@ export const NewProjectPage = () => {
       // Trigger agent execution
       const deployment = await backendApi.triggerAgent(token, project.id);
       
-      // Navigate to deployment page
-      navigate(`/deploy/project-${project.id}/${deployment.deploymentId}`);
+      // Navigate to deployment page with repo name and deployment ID
+      navigate(`/deploy/${repoName}/${deployment.deploymentId}`);
     } catch (error) {
       console.error('Failed to run agent:', error);
       setIsRunningAgent(false);
