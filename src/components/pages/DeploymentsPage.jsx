@@ -17,7 +17,7 @@ export const DeploymentsPage = ({ searchQuery }) => {
   }, []);
 
   useEffect(() => {
-    if (!projectId) {
+    if (!projectId || projects.length === 0) {
       setLoading(false);
       return;
     }
@@ -26,10 +26,12 @@ export const DeploymentsPage = ({ searchQuery }) => {
       setLoading(true);
       const project = projects.find(p => p.id === projectId);
       if (!project) {
+        console.log('[DeploymentsPage] Project not found:', projectId);
         setLoading(false);
         return;
       }
 
+      console.log('[DeploymentsPage] Fetching commits for project:', project);
       try {
         const response = await fetch('https://qz4k4nhlwfo4p3jdkzsxpdfksu0hwqir.lambda-url.ap-south-1.on.aws/', {
           method: 'POST',
@@ -40,11 +42,13 @@ export const DeploymentsPage = ({ searchQuery }) => {
           })
         });
         const result = await response.json();
+        console.log('[DeploymentsPage] Commits response:', result);
         if (result.data?.getCommits) {
           setCommits(result.data.getCommits);
+          console.log('[DeploymentsPage] Set commits:', result.data.getCommits);
         }
       } catch (error) {
-        console.error('Failed to fetch commits:', error);
+        console.error('[DeploymentsPage] Failed to fetch commits:', error);
       } finally {
         setLoading(false);
       }
@@ -127,6 +131,28 @@ export const DeploymentsPage = ({ searchQuery }) => {
             Select a project to view its deployment history and details.
           </div>
         </div>
+      ) : loading || (projectId && commits.length === 0) ? (
+        <div className="deployments-list">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="deployment-row" style={{ cursor: 'default' }}>
+              <div className="deployment-left" style={{ flex: 1 }}>
+                <div className="deployment-commit" style={{ marginBottom: '8px' }}>
+                  <Skeleton width="80px" height="16px" borderRadius="4px" style={{ marginRight: '12px' }} />
+                  <Skeleton width="250px" height="16px" borderRadius="4px" />
+                </div>
+                <div className="deployment-info" style={{ display: 'flex', gap: '12px' }}>
+                  <Skeleton width="60px" height="14px" borderRadius="4px" />
+                  <Skeleton width="50px" height="14px" borderRadius="4px" />
+                  <Skeleton width="50px" height="14px" borderRadius="4px" />
+                </div>
+              </div>
+              <div className="deployment-right" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Skeleton width="8px" height="8px" borderRadius="50%" />
+                <Skeleton width="50px" height="14px" borderRadius="4px" />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : filteredDeployments.length === 0 ? (
         <div className="empty-state">
           <img 
@@ -134,58 +160,36 @@ export const DeploymentsPage = ({ searchQuery }) => {
             alt="No deployments" 
             className="empty-image"
           />
-          <div className="empty-title">No deployments found</div>
+          <div className="empty-title">No commits found</div>
           <div className="empty-desc">
-            No deployments match your search criteria.
+            No commits match your search criteria.
           </div>
         </div>
       ) : (
         <div className="deployments-list">
-          {loading ? (
-            [...Array(4)].map((_, i) => (
-              <div key={i} className="deployment-row" style={{ cursor: 'default' }}>
-                <div className="deployment-left" style={{ flex: 1 }}>
-                  <div className="deployment-commit" style={{ marginBottom: '8px' }}>
-                    <Skeleton width="80px" height="16px" borderRadius="4px" style={{ marginRight: '12px' }} />
-                    <Skeleton width="250px" height="16px" borderRadius="4px" />
-                  </div>
-                  <div className="deployment-info" style={{ display: 'flex', gap: '12px' }}>
-                    <Skeleton width="60px" height="14px" borderRadius="4px" />
-                    <Skeleton width="50px" height="14px" borderRadius="4px" />
-                    <Skeleton width="50px" height="14px" borderRadius="4px" />
-                  </div>
+          {filteredDeployments.map(commit => (
+            <div 
+              key={commit.sha} 
+              className="deployment-row"
+              onClick={() => navigate(`/deploy/${projectId}/${commit.sha}`)}
+            >
+              <div className="deployment-left">
+                <div className="deployment-commit">
+                  <code className="commit-hash">{commit.sha.substring(0, 7)}</code>
+                  <span className="commit-message">{commit.message}</span>
                 </div>
-                <div className="deployment-right" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Skeleton width="8px" height="8px" borderRadius="50%" />
-                  <Skeleton width="50px" height="14px" borderRadius="4px" />
+                <div className="deployment-info">
+                  <span className="deployment-branch">{selectedProject?.metadata.branchName || 'main'}</span>
+                  <span className="deployment-time">{new Date(commit.date).toLocaleDateString()}</span>
+                  <span className="deployment-duration">{commit.author}</span>
                 </div>
               </div>
-            ))
-          ) : (
-            filteredDeployments.map(commit => (
-              <div 
-                key={commit.sha} 
-                className="deployment-row"
-                onClick={() => navigate(`/deploy/${projectId}/${commit.sha}`)}
-              >
-                <div className="deployment-left">
-                  <div className="deployment-commit">
-                    <code className="commit-hash">{commit.sha.substring(0, 7)}</code>
-                    <span className="commit-message">{commit.message}</span>
-                  </div>
-                  <div className="deployment-info">
-                    <span className="deployment-branch">{selectedProject?.metadata.branchName || 'main'}</span>
-                    <span className="deployment-time">{new Date(commit.date).toLocaleDateString()}</span>
-                    <span className="deployment-duration">{commit.author}</span>
-                  </div>
-                </div>
-                <div className="deployment-right">
-                  <span className="status-dot ready"></span>
-                  <span className="status-text">Ready</span>
-                </div>
+              <div className="deployment-right">
+                <span className="status-dot ready"></span>
+                <span className="status-text">Ready</span>
               </div>
-            ))
-          )}
+            </div>
+          ))}
         </div>
       )}
     </div>

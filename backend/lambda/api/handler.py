@@ -493,22 +493,32 @@ def handle_get_commits(variables: Dict[str, Any]) -> Dict[str, Any]:
         if not github_repo:
             return create_response(400, {'errors': [{'message': 'Missing githubRepo'}]})
         
-        # Extract owner and repo from URL
-        match = github_repo.replace('https://github.com/', '').replace('http://github.com/', '').split('/')
-        if len(match) < 2:
+        # Clean and extract owner and repo from URL
+        repo_clean = github_repo.replace('https://github.com/', '').replace('http://github.com/', '')
+        repo_clean = repo_clean.rstrip('/').replace('.git', '')
+        
+        parts = repo_clean.split('/')
+        if len(parts) < 2:
             return create_response(400, {'errors': [{'message': 'Invalid GitHub URL'}]})
         
-        owner, repo = match[0], match[1]
+        owner, repo = parts[0], parts[1]
+        
+        print(f'[GetCommits] Fetching commits for {owner}/{repo} on branch {branch}')
         
         # Fetch commits from GitHub API
         response = requests.get(
             f'https://api.github.com/repos/{owner}/{repo}/commits',
             params={'sha': branch, 'per_page': 20},
+            headers={'Accept': 'application/vnd.github.v3+json'},
             timeout=10
         )
         
+        print(f'[GetCommits] GitHub API response status: {response.status_code}')
+        
         if not response.ok:
-            return create_response(response.status_code, {'errors': [{'message': f'GitHub API error: {response.status_code}'}]})
+            error_msg = response.json().get('message', 'Unknown error') if response.text else 'Unknown error'
+            print(f'[GetCommits] GitHub API error: {error_msg}')
+            return create_response(response.status_code, {'errors': [{'message': f'GitHub API error: {response.status_code} - {error_msg}'}]})
         
         commits_data = response.json()
         commits = [{
@@ -518,6 +528,8 @@ def handle_get_commits(variables: Dict[str, Any]) -> Dict[str, Any]:
             'date': c['commit']['author']['date'],
             'url': c['html_url']
         } for c in commits_data]
+        
+        print(f'[GetCommits] Successfully fetched {len(commits)} commits')
         
         return create_response(200, {
             'data': {
