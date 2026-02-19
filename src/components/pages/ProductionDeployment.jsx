@@ -141,7 +141,7 @@ const CheckIcon = () => (
 );
 
 export default function ProductionDeployment() {
-  const { deploymentId } = useParams();
+  const { repoName, deploymentId } = useParams();
   const deployId = deploymentId || 'a3f2c1d';
   
   const {
@@ -165,6 +165,9 @@ export default function ProductionDeployment() {
   const [fixingIndex, setFixingIndex] = useState(null);
   const [expandedErrors, setExpandedErrors] = useState([]);
   const [limitModal, setLimitModal] = useState(false);
+  const [readmeContent, setReadmeContent] = useState('');
+  const [repoUrl, setRepoUrl] = useState('github.com/dhaual125/tech-hack');
+  const [branchName, setBranchName] = useState('TEAM_ALPHA_AYUSH_AI_Fix');
   const readmeRef = useRef(null);
   const errorsRef = useRef(null);
   const cicdRef = useRef(null);
@@ -225,7 +228,26 @@ export default function ProductionDeployment() {
       initialRuns.forEach(run => addCicdRun(deployId, run));
       setTotalFailures(deployId, 10);
     }
-  }, []);
+
+    // Fetch real README from GitHub
+    const fetchReadme = async () => {
+      if (!repoUrl) return;
+      try {
+        const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+        if (!match) return;
+        const [, owner, repo] = match;
+        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/readme`);
+        if (response.ok) {
+          const data = await response.json();
+          const content = atob(data.content);
+          setReadmeContent(content);
+        }
+      } catch (error) {
+        console.error('Failed to fetch README:', error);
+      }
+    };
+    fetchReadme();
+  }, [repoUrl]);
 
   if (loading) {
     return (
@@ -290,7 +312,7 @@ export default function ProductionDeployment() {
             <div className="prod-info-section">
               <div className="prod-info-label">Repository</div>
               <div className="prod-info-value">
-                github.com/dhaual125/tech-hack
+                {repoUrl}
                 <span className="prod-link"><ExternalLinkIcon /></span>
               </div>
             </div>
@@ -298,7 +320,7 @@ export default function ProductionDeployment() {
             <div className="prod-info-section">
               <div className="prod-info-label">Branch URL</div>
               <div className="prod-info-value" style={{ fontSize: "13px", color: "#374151", fontFamily: "monospace" }}>
-                TEAM_ALPHA_AYUSH_AI_Fix
+                {branchName}
               </div>
             </div>
 
@@ -362,18 +384,7 @@ export default function ProductionDeployment() {
 
         {readmeOpen && (
           <div style={{ borderTop: "1px solid #f0f0f0", padding: "20px 32px", background: "#fafafa", fontSize: "13px", lineHeight: "1.6", color: "#374151" }}>
-            <pre style={{ fontFamily: "'Roboto Mono', monospace", whiteSpace: "pre-wrap", margin: 0 }}>{`# TechHack 2025 - Innovation & Technology Hackathon
-
-## Project Overview
-A modern web application built for the TechHack 2025 hackathon.
-
-## Tech Stack
-- Frontend: React.js, Vite
-- Deployment: Vercel
-
-## Team
-- Team Leader: Swastik Patel
-- Developers: 4 team members`}</pre>
+            <pre style={{ fontFamily: "'Roboto Mono', monospace", whiteSpace: "pre-wrap", margin: 0 }}>{readmeContent || 'Loading README...'}</pre>
           </div>
         )}
 

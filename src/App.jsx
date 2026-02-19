@@ -87,7 +87,7 @@ function AppContent() {
             <Route path="/home" element={<Navigate to="/project" replace />} />
             <Route path="/deploy" element={<DeploymentsPage searchQuery={searchQuery} />} />
             <Route path="/deploy/:projectId" element={<DeploymentsPage searchQuery={searchQuery} />} />
-            <Route path="/deploy/:projectId/:deploymentId" element={<ProductionDeployment />} />
+            <Route path="/deploy/:repoName/:deploymentId" element={<ProductionDeployment />} />
             <Route path="/vision" element={<Navigate to="/deploy" replace />} />
             <Route path="/stt" element={<ComingSoon label={PAGE_META.stt?.title || ""} />} />
             <Route path="/trans" element={<ComingSoon label={PAGE_META.trans?.title || ""} />} />

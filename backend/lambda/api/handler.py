@@ -331,16 +331,27 @@ def handle_trigger_agent(variables: Dict[str, Any]) -> Dict[str, Any]:
         if not project_id:
             return create_response(400, {'errors': [{'message': 'Missing project ID'}]})
 
-        # Verify project exists
+        # Verify project exists and get user's GitHub token
         if IS_LOCAL:
             if project_id not in _local_projects:
                 return create_response(404, {'errors': [{'message': 'Project not found'}]})
             project_data = _local_projects[project_id]
+            user_data = _local_users.get(user_id, {})
         else:
             project = projects_table.get_item(Key={'project_id': project_id})
             if 'Item' not in project:
                 return create_response(404, {'errors': [{'message': 'Project not found'}]})
             project_data = project['Item']
+            user = users_table.get_item(Key={'user_id': user_id})
+            user_data = user.get('Item', {})
+
+        # Create GitHub branch
+        github_token = user_data.get('access_token')
+        if github_token:
+            try:
+                _create_github_branch(project_data['github_repo'], project_data['branch_name'], github_token)
+            except Exception as branch_error:
+                print(f"Failed to create GitHub branch (non-fatal): {branch_error}")
 
         deployment_id = str(uuid.uuid4())
         run_id = str(uuid.uuid4())
@@ -578,3 +589,34 @@ def _get_user_from_token(token: str) -> Optional[str]:
         return payload.get('user_id')
     except Exception:
         return None
+
+
+def _create_github_branch(repo_url: str, branch_name: str, github_token: str):
+    """Create a new branch in GitHub repository"""
+    match = repo_url.replace('https://github.com/', '').replace('http://github.com/', '').split('/')
+    if len(match) < 2:
+        raise ValueError('Invalid GitHub URL')
+    owner, repo = match[0], match[1]
+    
+    headers = {'Authorization': f'token {github_token}', 'Accept': 'application/vnd.github.v3+json'}
+    repo_response = requests.get(f'https://api.github.com/repos/{owner}/{repo}', headers=headers, timeout=10)
+    if not repo_response.ok:
+        raise Exception(f'Failed to fetch repo: {repo_response.text}')
+    
+    default_branch = repo_response.json().get('default_branch', 'main')
+    ref_response = requests.get(f'https://api.github.com/repos/{owner}/{repo}/git/ref/heads/{default_branch}', headers=headers, timeout=10)
+    if not ref_response.ok:
+        raise Exception(f'Failed to get branch ref: {ref_response.text}')
+    
+    sha = ref_response.json()['object']['sha']
+    create_response = requests.post(
+        f'https://api.github.com/repos/{owner}/{repo}/git/refs',
+        headers=headers,
+        json={'ref': f'refs/heads/{branch_name}', 'sha': sha},
+        timeout=10
+    )
+    
+    if not create_response.ok and 'already exists' not in create_response.text:
+        raise Exception(f'Failed to create branch: {create_response.text}')
+    
+    print(f'Successfully created branch {branch_name} in {owner}/{repo}')
