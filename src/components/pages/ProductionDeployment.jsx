@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { useDeploymentStore } from "../../store";
+import { useDeploymentStore, useProjectStore } from "../../store";
 import CodeDiff from "./CodeDiff";
 import "./ProductionDeployment.css";
 
@@ -155,9 +155,12 @@ export default function ProductionDeployment() {
     setTotalFailures,
   } = useDeploymentStore();
   
+  const { projects, fetchProjects } = useProjectStore();
+  
   const deploymentState = getDeploymentState(deployId);
   
   const [loading, setLoading] = useState(true);
+  const [selectedProject, setSelectedProject] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [readmeOpen, setReadmeOpen] = useState(false);
   const [errorsOpen, setErrorsOpen] = useState(false);
@@ -221,138 +224,91 @@ export default function ProductionDeployment() {
   };
 
   useEffect(() => {
-    const fetchDeployment = async () => {
+    fetchProjects();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedProject) return;
+
+    const fetchCommits = async () => {
       try {
         const token = localStorage.getItem('vajraopz_token');
-        if (!token || !deploymentId) {
-          setLoading(false);
-          return;
-        }
+        if (!token) return;
 
-        const response = await fetch('https://qz4k4nhlwfo4p3jdkzsxpdfksu0hwqir.lambda-url.ap-south-1.on.aws/', {
+        setRepoUrl(selectedProject.repo.replace('https://', ''));
+        setBranchName(selectedProject.metadata.branchName);
+
+        const commitsData = await fetch('https://qz4k4nhlwfo4p3jdkzsxpdfksu0hwqir.lambda-url.ap-south-1.on.aws/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            query: `query GetDeployment($token: String!, $deploymentId: String!) {
-              getDeployment(token: $token, deploymentId: $deploymentId) {
-                deployment_id
-                project_id
-                status
-              }
-            }`,
-            variables: { token, deploymentId }
+            query: `query GetCommits($githubRepo: String!, $branch: String) { getCommits(githubRepo: $githubRepo, branch: $branch) { sha message author date url } }`,
+            variables: { githubRepo: selectedProject.repo, branch: selectedProject.metadata.branchName || 'main' }
           })
         });
+        const commitsResult = await commitsData.json();
+        if (commitsResult.data?.getCommits) {
+          setCommits(commitsResult.data.getCommits);
+        }
 
-        const result = await response.json();
-        if (result.data?.getDeployment) {
-          const deployment = result.data.getDeployment;
-          setDeploymentData(deployment);
-
-          // Fetch project details
-          const projectResponse = await fetch('https://qz4k4nhlwfo4p3jdkzsxpdfksu0hwqir.lambda-url.ap-south-1.on.aws/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              query: `query GetProjects($token: String!) { getProjects(token: $token) { project_id github_repo team_name team_leader branch_name } }`,
-              variables: { token }
-            })
-          });
-
-          const projectResult = await projectResponse.json();
-          const project = projectResult.data?.getProjects?.find(p => p.project_id === deployment.project_id);
-          
-          if (project) {
-            setRepoUrl(project.github_repo.replace('https://', ''));
-            setBranchName(project.branch_name);
-
-            // Fetch commits
-            try {
-              const commitsData = await fetch('https://qz4k4nhlwfo4p3jdkzsxpdfksu0hwqir.lambda-url.ap-south-1.on.aws/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  query: `query GetCommits($githubRepo: String!, $branch: String) { getCommits(githubRepo: $githubRepo, branch: $branch) { sha message author date url } }`,
-                  variables: { githubRepo: project.github_repo, branch: project.branch_name || 'main' }
-                })
-              });
-              const commitsResult = await commitsData.json();
-              if (commitsResult.data?.getCommits) {
-                setCommits(commitsResult.data.getCommits);
-              }
-            } catch (error) {
-              console.error('Failed to fetch commits:', error);
-            }
-
-            // Fetch README
-            const match = project.github_repo.match(/github\.com\/([^\/]+)\/([^\/]+)/);
-            if (match) {
-              const [, owner, repo] = match;
-              const readmeResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/readme`);
-              if (readmeResponse.ok) {
-                const data = await readmeResponse.json();
-                setReadmeContent(atob(data.content));
-              }
-            }
+        const match = selectedProject.repo.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+        if (match) {
+          const [, owner, repo] = match;
+          const readmeResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/readme`);
+          if (readmeResponse.ok) {
+            const data = await readmeResponse.json();
+            setReadmeContent(atob(data.content));
           }
         }
       } catch (error) {
-        console.error('Failed to fetch deployment:', error);
-      } finally {
-        setLoading(false);
+        console.error('Failed to fetch commits:', error);
       }
     };
 
-    fetchDeployment();
-    
-    if (cicdRuns.length === 0) {
-      const initialRuns = [
-        { id: 1, status: 'failed', timestamp: '2m 34s ago', iteration: 1, duration: '45s' },
-        { id: 2, status: 'failed', timestamp: '2m 10s ago', iteration: 2, duration: '38s' },
-        { id: 3, status: 'passed', timestamp: '1m 52s ago', iteration: 3, duration: '42s' },
-      ];
-      initialRuns.forEach(run => addCicdRun(deployId, run));
-      setTotalFailures(deployId, 10);
-    }
-  }, [deploymentId]);
+    fetchCommits();
+  }, [selectedProject]);
 
-  if (loading) {
+  if (!selectedProject) {
     return (
       <div className="production-deployment">
         <div className="prod-header">
-          <div style={{ width: "250px", height: "32px", background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)", backgroundSize: "200% 100%", borderRadius: "6px", animation: "shimmer-bg 1.5s infinite" }} />
-          <div style={{ display: "flex", gap: "12px" }}>
-            <div style={{ width: "100px", height: "36px", background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)", backgroundSize: "200% 100%", borderRadius: "999px", animation: "shimmer-bg 1.5s infinite" }} />
-            <div style={{ width: "100px", height: "36px", background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)", backgroundSize: "200% 100%", borderRadius: "999px", animation: "shimmer-bg 1.5s infinite 0.2s" }} />
-          </div>
+          <h1 className="prod-title">Select a Project</h1>
         </div>
-        <div className="prod-card">
-          <div className="prod-main">
-            <div className="prod-preview" style={{ background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)", backgroundSize: "200% 100%", animation: "shimmer-bg 1.5s infinite" }} />
-            <div className="prod-info" style={{ gap: "24px", flex: 1 }}>
-              {[80, 120, 100, 90, 110, 95].map((width, i) => (
-                <div key={i} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <div style={{ width: `${width}px`, height: "13px", background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)", backgroundSize: "200% 100%", borderRadius: "4px", animation: `shimmer-bg 1.5s infinite ${i * 0.1}s` }} />
-                  <div style={{ width: "100%", height: "16px", background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)", backgroundSize: "200% 100%", borderRadius: "4px", animation: `shimmer-bg 1.5s infinite ${i * 0.1 + 0.05}s` }} />
-                </div>
-              ))}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px", padding: "24px" }}>
+          {projects.map((project) => (
+            <div
+              key={project.id}
+              onClick={() => setSelectedProject(project)}
+              style={{
+                background: "#fff",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+                padding: "20px",
+                cursor: "pointer",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = project.color;
+                e.currentTarget.style.boxShadow = `0 4px 12px ${project.color}20`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "#e5e7eb";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: project.color }} />
+                <h3 style={{ fontSize: "16px", fontWeight: "600", margin: 0 }}>{project.amount}</h3>
+              </div>
+              <div style={{ fontSize: "13px", color: "#6b7280", marginBottom: "8px" }}>
+                <div>Team: {project.metadata.teamName}</div>
+                <div>Leader: {project.metadata.teamLeader}</div>
+              </div>
+              <div style={{ fontSize: "12px", color: "#9ca3af", fontFamily: "monospace" }}>
+                {project.repo.replace('https://', '')}
+              </div>
             </div>
-          </div>
-          <div style={{ borderTop: "1px solid #f0f0f0", padding: "16px 32px", display: "flex", alignItems: "center", gap: "12px" }}>
-            <div style={{ width: "16px", height: "16px", background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)", backgroundSize: "200% 100%", borderRadius: "4px", animation: "shimmer-bg 1.5s infinite" }} />
-            <div style={{ width: "16px", height: "16px", background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)", backgroundSize: "200% 100%", borderRadius: "4px", animation: "shimmer-bg 1.5s infinite 0.1s" }} />
-            <div style={{ width: "120px", height: "16px", background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)", backgroundSize: "200% 100%", borderRadius: "4px", animation: "shimmer-bg 1.5s infinite 0.2s" }} />
-            <div style={{ flex: 1 }} />
-            <div style={{ width: "80px", height: "28px", background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)", backgroundSize: "200% 100%", borderRadius: "999px", animation: "shimmer-bg 1.5s infinite 0.3s" }} />
-          </div>
-          <div style={{ borderTop: "1px solid #f0f0f0", padding: "16px 32px", display: "flex", alignItems: "center", gap: "12px" }}>
-            <div style={{ width: "16px", height: "16px", background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)", backgroundSize: "200% 100%", borderRadius: "4px", animation: "shimmer-bg 1.5s infinite 0.4s" }} />
-            <div style={{ width: "16px", height: "16px", background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)", backgroundSize: "200% 100%", borderRadius: "4px", animation: "shimmer-bg 1.5s infinite 0.5s" }} />
-            <div style={{ width: "100px", height: "16px", background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)", backgroundSize: "200% 100%", borderRadius: "4px", animation: "shimmer-bg 1.5s infinite 0.6s" }} />
-            <div style={{ width: "60px", height: "20px", background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)", backgroundSize: "200% 100%", borderRadius: "20px", animation: "shimmer-bg 1.5s infinite 0.7s" }} />
-            <div style={{ flex: 1 }} />
-            <div style={{ width: "70px", height: "28px", background: "linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)", backgroundSize: "200% 100%", borderRadius: "999px", animation: "shimmer-bg 1.5s infinite 0.8s" }} />
-          </div>
+          ))}
         </div>
       </div>
     );
@@ -361,7 +317,8 @@ export default function ProductionDeployment() {
   return (
     <div className="production-deployment">
       <div className="prod-header">
-        <h1 className="prod-title">Production Deployment</h1>
+        <button onClick={() => setSelectedProject(null)} style={{ background: "#f3f4f6", border: "none", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", fontSize: "13px", fontWeight: "500" }}>← Back to Projects</button>
+        <h1 className="prod-title">{selectedProject.amount}</h1>
         <div className="prod-actions">
           <button className="prod-btn" onClick={() => { setReadmeOpen(!readmeOpen); setTimeout(() => readmeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }}>README.md</button>
           <button className="prod-btn" onClick={() => { setCommitsOpen(!commitsOpen); setTimeout(() => commitsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }}>Commit History</button>
@@ -395,8 +352,8 @@ export default function ProductionDeployment() {
             <div className="prod-info-section">
               <div className="prod-info-label">Team</div>
               <div style={{ fontSize: "13px", color: "#374151" }}>
-                <div style={{ marginBottom: "4px" }}><span style={{ fontWeight: "500" }}>Team Leader:</span> Swastik Patel</div>
-                <div><span style={{ fontWeight: "500" }}>Members:</span> 4 developers</div>
+                <div style={{ marginBottom: "4px" }}><span style={{ fontWeight: "500" }}>Team Leader:</span> {selectedProject.metadata.teamLeader}</div>
+                <div><span style={{ fontWeight: "500" }}>Team:</span> {selectedProject.metadata.teamName}</div>
               </div>
             </div>
 
