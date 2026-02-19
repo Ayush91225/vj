@@ -103,5 +103,21 @@ export const GRAPHQL_QUERIES = {
         url
       }
     }
+  `,
+
+  GET_FIXES: `
+    query getFixes($token: String!, $deploymentId: String!) {
+      getFixes(token: $token, deploymentId: $deploymentId) {
+        fix_id
+        file
+        line
+        bug_type
+        commit_message
+        status
+        message
+        agent
+        timestamp
+      }
+    }
   `
 };
