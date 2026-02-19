@@ -104,7 +104,7 @@ def route_graphql(body: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def create_response(status_code: int, body: Dict[str, Any]) -> Dict[str, Any]:
-    """Create standardized API response with CORS headers"""
+    """Create standardized API response"""
     if status_code >= 400:
         print(f"API ERROR {status_code}: {json.dumps(body)}")
         
@@ -112,9 +112,6 @@ def create_response(status_code: int, body: Dict[str, Any]) -> Dict[str, Any]:
         'statusCode': status_code,
         'headers': {
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         },
         'body': json.dumps(body)
     }
