@@ -12,8 +12,8 @@ export const backendConfig = {
   githubOAuthUrl: 'https://github.com/login/oauth/authorize',
   environment: isDev ? 'development' : 'production',
   region: 'us-east-1',
-  frontendUrl: isDev ? 'http://localhost:3000' : 'https://vajraopz.vercel.app',
-  callbackUrl: isDev ? 'http://localhost:3000/auth/callback' : 'https://vajraopz.vercel.app/auth/callback',
+  frontendUrl: isDev ? 'http://localhost:3000' : 'https://vj-eta.vercel.app',
+  callbackUrl: isDev ? 'http://localhost:3000/auth/callback' : 'https://vj-eta.vercel.app/auth/callback',
 };
 
 // GraphQL queries
