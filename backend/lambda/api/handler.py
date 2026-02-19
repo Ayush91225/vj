@@ -8,6 +8,7 @@ import requests
 from datetime import datetime, timezone
 import base64
 from typing import Dict, Any, Optional
+from decimal import Decimal
 
 # ─── Detect environment ──────────────────────────────────────────────
 IS_LOCAL = os.environ.get('IS_LOCAL', 'false').lower() == 'true'
@@ -98,15 +99,29 @@ def route_graphql(body: Dict[str, Any]) -> Dict[str, Any]:
         return handle_get_projects(variables)
     elif 'getDeployment' in query_normalized:
         return handle_get_deployment(variables)
+    elif 'getCommits' in query_normalized:
+        return handle_get_commits(variables)
     else:
         print(f"Unknown query: {query_normalized[:200]}")
         return create_response(400, {'errors': [{'message': 'Unknown query or mutation'}]})
+
+
+def decimal_to_native(obj):
+    if isinstance(obj, list):
+        return [decimal_to_native(i) for i in obj]
+    elif isinstance(obj, dict):
+        return {k: decimal_to_native(v) for k, v in obj.items()}
+    elif isinstance(obj, Decimal):
+        return int(obj) if obj % 1 == 0 else float(obj)
+    return obj
 
 
 def create_response(status_code: int, body: Dict[str, Any]) -> Dict[str, Any]:
     """Create standardized API response"""
     if status_code >= 400:
         print(f"API ERROR {status_code}: {json.dumps(body)}")
+    
+    body = decimal_to_native(body)
         
     return {
         'statusCode': status_code,
@@ -467,6 +482,51 @@ def handle_get_deployment(variables: Dict[str, Any]) -> Dict[str, Any]:
     except Exception as e:
         print(f"Get deployment error: {e}")
         return create_response(500, {'errors': [{'message': f'Get deployment error: {str(e)}'}]})
+
+
+def handle_get_commits(variables: Dict[str, Any]) -> Dict[str, Any]:
+    """Fetch commits from GitHub for a repository"""
+    try:
+        github_repo = variables.get('githubRepo')
+        branch = variables.get('branch', 'main')
+        
+        if not github_repo:
+            return create_response(400, {'errors': [{'message': 'Missing githubRepo'}]})
+        
+        # Extract owner and repo from URL
+        match = github_repo.replace('https://github.com/', '').replace('http://github.com/', '').split('/')
+        if len(match) < 2:
+            return create_response(400, {'errors': [{'message': 'Invalid GitHub URL'}]})
+        
+        owner, repo = match[0], match[1]
+        
+        # Fetch commits from GitHub API
+        response = requests.get(
+            f'https://api.github.com/repos/{owner}/{repo}/commits',
+            params={'sha': branch, 'per_page': 20},
+            timeout=10
+        )
+        
+        if not response.ok:
+            return create_response(response.status_code, {'errors': [{'message': f'GitHub API error: {response.status_code}'}]})
+        
+        commits_data = response.json()
+        commits = [{
+            'sha': c['sha'][:7],
+            'message': c['commit']['message'].split('\n')[0],
+            'author': c['commit']['author']['name'],
+            'date': c['commit']['author']['date'],
+            'url': c['html_url']
+        } for c in commits_data]
+        
+        return create_response(200, {
+            'data': {
+                'getCommits': commits
+            }
+        })
+    except Exception as e:
+        print(f"Get commits error: {e}")
+        return create_response(500, {'errors': [{'message': f'Get commits error: {str(e)}'}]})
 
 
 # =====================================================================

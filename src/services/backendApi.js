@@ -86,6 +86,14 @@ class BackendApiService {
     return data.getDeployment;
   }
 
+  async getCommits(githubRepo, branch = 'main') {
+    const data = await this.graphqlRequest(GRAPHQL_QUERIES.GET_COMMITS, {
+      githubRepo,
+      branch
+    });
+    return data.getCommits;
+  }
+
   // Utility methods
   isAuthenticated() {
     const token = this.getToken();

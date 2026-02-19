@@ -91,5 +91,17 @@ export const GRAPHQL_QUERIES = {
         }
       }
     }
+  `,
+
+  GET_COMMITS: `
+    query getCommits($githubRepo: String!, $branch: String) {
+      getCommits(githubRepo: $githubRepo, branch: $branch) {
+        sha
+        message
+        author
+        date
+        url
+      }
+    }
   `
 };

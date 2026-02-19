@@ -169,9 +169,12 @@ export default function ProductionDeployment() {
   const [repoUrl, setRepoUrl] = useState('');
   const [branchName, setBranchName] = useState('');
   const [deploymentData, setDeploymentData] = useState(null);
+  const [commits, setCommits] = useState([]);
+  const [commitsOpen, setCommitsOpen] = useState(false);
   const readmeRef = useRef(null);
   const errorsRef = useRef(null);
   const cicdRef = useRef(null);
+  const commitsRef = useRef(null);
 
   const MAX_FIX_ATTEMPTS = 5;
   const totalFixAttempts = deploymentState.totalAttempts || 0;
@@ -263,6 +266,24 @@ export default function ProductionDeployment() {
             setRepoUrl(project.github_repo.replace('https://', ''));
             setBranchName(project.branch_name);
 
+            // Fetch commits
+            try {
+              const commitsData = await fetch('https://qz4k4nhlwfo4p3jdkzsxpdfksu0hwqir.lambda-url.ap-south-1.on.aws/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  query: `query GetCommits($githubRepo: String!, $branch: String) { getCommits(githubRepo: $githubRepo, branch: $branch) { sha message author date url } }`,
+                  variables: { githubRepo: project.github_repo, branch: project.branch_name || 'main' }
+                })
+              });
+              const commitsResult = await commitsData.json();
+              if (commitsResult.data?.getCommits) {
+                setCommits(commitsResult.data.getCommits);
+              }
+            } catch (error) {
+              console.error('Failed to fetch commits:', error);
+            }
+
             // Fetch README
             const match = project.github_repo.match(/github\.com\/([^\/]+)\/([^\/]+)/);
             if (match) {
@@ -343,6 +364,7 @@ export default function ProductionDeployment() {
         <h1 className="prod-title">Production Deployment</h1>
         <div className="prod-actions">
           <button className="prod-btn" onClick={() => { setReadmeOpen(!readmeOpen); setTimeout(() => readmeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }}>README.md</button>
+          <button className="prod-btn" onClick={() => { setCommitsOpen(!commitsOpen); setTimeout(() => commitsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }}>Commit History</button>
           <button className="prod-btn" onClick={() => { setCicdOpen(!cicdOpen); setTimeout(() => cicdRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }}>CI/CD Timeline</button>
           <button className="prod-btn" onClick={() => { setErrorsOpen(!errorsOpen); setTimeout(() => errorsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100); }}>Code Issues</button>
         </div>
@@ -431,6 +453,28 @@ export default function ProductionDeployment() {
         {readmeOpen && (
           <div style={{ borderTop: "1px solid #f0f0f0", padding: "20px 32px", background: "#fafafa", fontSize: "13px", lineHeight: "1.6", color: "#374151" }}>
             <pre style={{ fontFamily: "'Roboto Mono', monospace", whiteSpace: "pre-wrap", margin: 0 }}>{readmeContent || 'Loading README...'}</pre>
+          </div>
+        )}
+
+        <div ref={commitsRef} className="prod-settings" onClick={() => setCommitsOpen(!commitsOpen)}>
+          <div style={{ transform: commitsOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}><ChevronRightIcon /></div>
+          <CommitIcon />
+          <span className="prod-settings-text">Commit History</span>
+          <span className="prod-badge">{commits.length} commits</span>
+        </div>
+
+        {commitsOpen && (
+          <div style={{ borderTop: "1px solid #f0f0f0", background: "#fefefe" }}>
+            {commits.map((commit, i) => (
+              <div key={commit.sha} style={{ padding: "16px 32px", borderBottom: i < commits.length - 1 ? "1px solid #f0f0f0" : "none", display: "flex", alignItems: "center", gap: "12px" }}>
+                <CommitIcon />
+                <span style={{ fontSize: "12px", fontFamily: "monospace", color: "#0ea5e9", minWidth: "60px" }}>{commit.sha}</span>
+                <span style={{ fontSize: "13px", color: "#374151", flex: 1 }}>{commit.message}</span>
+                <span style={{ fontSize: "12px", color: "#6b7280" }}>{commit.author}</span>
+                <span style={{ fontSize: "12px", color: "#9ca3af" }}>{new Date(commit.date).toLocaleDateString()}</span>
+                <a href={commit.url} target="_blank" rel="noopener noreferrer" style={{ color: "#6b7280" }}><ExternalLinkIcon /></a>
+              </div>
+            ))}
           </div>
         )}
 

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { TIMEOUTS, LIMITS } from '../constants/config';
+import { backendApi } from '../services/backendApi';
 
 const MOCK_PROJECTS = [
   { 
@@ -159,10 +160,47 @@ export const useProjectStore = create((set, get) => ({
   fetchProjects: async () => {
     set({ loading: true, error: null });
     try {
-      await new Promise(resolve => setTimeout(resolve, TIMEOUTS.SKELETON_LOADING));
-      set({ projects: MOCK_PROJECTS, loading: false });
+      const token = backendApi.getToken();
+      if (!token) {
+        set({ projects: [], loading: false });
+        return;
+      }
+
+      const dbProjects = await backendApi.getProjects(token);
+      
+      // Transform DynamoDB projects to match UI format
+      const transformedProjects = dbProjects.map((p, index) => ({
+        id: p.project_id,
+        amount: p.team_name || `Project ${index + 1}`,
+        label: p.team_leader || 'Unknown',
+        repo: p.github_repo,
+        color: ['#4f46e5', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4'][index % 6],
+        metadata: {
+          repoUrl: p.github_repo,
+          branchUrl: `${p.github_repo}/tree/${p.branch_name}`,
+          teamName: p.team_name,
+          teamLeader: p.team_leader,
+          status: p.status,
+          createdAt: p.created_at,
+          branchName: p.branch_name,
+          failuresDetected: 0,
+          fixesApplied: 0,
+          cicdStatus: p.status === 'completed' ? 'PASSED' : 'PENDING',
+          deploymentTime: '0m 0s',
+          baseScore: 100,
+          speedBonus: 0,
+          efficiencyPenalty: 0,
+          totalScore: 100,
+          lastCommitMessage: 'Initial commit',
+          lastCommitId: 'pending',
+          commits: 0
+        }
+      }));
+
+      set({ projects: transformedProjects, loading: false });
     } catch (error) {
-      set({ error: error.message, loading: false });
+      console.error('Failed to fetch projects:', error);
+      set({ error: error.message, loading: false, projects: [] });
     }
   },
   
