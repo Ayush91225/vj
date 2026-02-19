@@ -75,7 +75,8 @@ def create_branch_and_push_fixes(
     branch_name: str,
     access_token: str,
     fixes: List[Dict[str, Any]],
-    deployment_id: str
+    deployment_id: str,
+    base_branch: str = 'main'
 ) -> List[str]:
     """Create branch and push fixes to GitHub"""
     print(f"[GitHub] Creating branch {branch_name} and pushing fixes...")
@@ -83,48 +84,87 @@ def create_branch_and_push_fixes(
     commit_shas = []
     
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Clone repo
-        repo_url_with_token = repo_url.replace('https://github.com/', f'https://{access_token}@github.com/')
-        repo = git.Repo.clone_from(repo_url_with_token, tmpdir)
-        
-        # Create new branch
         try:
-            repo.git.checkout('-b', branch_name)
-        except:
-            # Branch might already exist
-            repo.git.checkout(branch_name)
-        
-        # Apply each fix and commit
-        for fix in fixes:
-            file_path = os.path.join(tmpdir, fix['file'])
+            # Clone repo
+            repo_url_with_token = repo_url.replace('https://github.com/', f'https://{access_token}@github.com/')
+            print(f"[GitHub] Cloning from {repo_url}...")
+            repo = git.Repo.clone_from(repo_url_with_token, tmpdir)
             
-            if os.path.exists(file_path):
-                # Read file
-                with open(file_path, 'r') as f:
-                    content = f.read()
+            # Checkout base branch first
+            try:
+                repo.git.checkout(base_branch)
+                print(f"[GitHub] Checked out base branch: {base_branch}")
+            except Exception as e:
+                print(f"[GitHub] Base branch {base_branch} not found, trying 'master': {e}")
+                try:
+                    repo.git.checkout('master')
+                    base_branch = 'master'
+                except:
+                    print(f"[GitHub] Using current branch as base")
+            
+            # Check if branch already exists remotely
+            remote_branches = [ref.name for ref in repo.remote().refs]
+            branch_exists = f'origin/{branch_name}' in remote_branches
+            
+            if branch_exists:
+                print(f"[GitHub] Branch {branch_name} already exists, checking out...")
+                repo.git.checkout(branch_name)
+            else:
+                print(f"[GitHub] Creating new branch {branch_name} from {base_branch}...")
+                repo.git.checkout('-b', branch_name)
+            
+            # Apply each fix and commit
+            for i, fix in enumerate(fixes):
+                file_path = os.path.join(tmpdir, fix['file'])
                 
-                # Apply fix (simple line replacement for now)
-                lines = content.split('\n')
-                if 0 < fix['line'] <= len(lines):
-                    lines[fix['line'] - 1] = fix['fix']
-                    
-                    # Write back
-                    with open(file_path, 'w') as f:
-                        f.write('\n'.join(lines))
-                    
-                    # Commit
-                    repo.index.add([fix['file']])
-                    commit_msg = f"{fix['type']} error in {fix['file']} line {fix['line']} → Fix: {fix['message']}"
-                    repo.index.commit(commit_msg)
-                    
-                    commit_shas.append(repo.head.commit.hexsha[:7])
-                    print(f"[GitHub] Committed fix: {commit_msg}")
-        
-        # Push to GitHub
-        origin = repo.remote('origin')
-        origin.push(branch_name)
-        
-        print(f"[GitHub] Pushed {len(commit_shas)} commits to {branch_name}")
+                if os.path.exists(file_path):
+                    try:
+                        # Read file
+                        with open(file_path, 'r') as f:
+                            content = f.read()
+                        
+                        # Apply fix (simple line replacement for now)
+                        lines = content.split('\n')
+                        if 0 < fix['line'] <= len(lines):
+                            lines[fix['line'] - 1] = fix['fix']
+                            
+                            # Write back
+                            with open(file_path, 'w') as f:
+                                f.write('\n'.join(lines))
+                            
+                            # Commit
+                            repo.index.add([fix['file']])
+                            commit_msg = f"{fix['type']} error in {fix['file']} line {fix['line']} → Fix: {fix['message']}"
+                            repo.index.commit(commit_msg)
+                            
+                            commit_shas.append(repo.head.commit.hexsha[:7])
+                            print(f"[GitHub] Committed fix {i+1}/{len(fixes)}: {commit_msg}")
+                    except Exception as e:
+                        print(f"[GitHub] Error applying fix to {fix['file']}: {e}")
+                else:
+                    print(f"[GitHub] File not found: {file_path}")
+            
+            # Push to GitHub with force if branch exists
+            if commit_shas:
+                origin = repo.remote('origin')
+                print(f"[GitHub] Pushing {len(commit_shas)} commits to {branch_name}...")
+                
+                if branch_exists:
+                    # Force push if branch already exists
+                    origin.push(refspec=f'{branch_name}:{branch_name}', force=True)
+                else:
+                    # Normal push for new branch
+                    origin.push(refspec=f'{branch_name}:{branch_name}', set_upstream=True)
+                
+                print(f"[GitHub] Successfully pushed {len(commit_shas)} commits to {branch_name}")
+            else:
+                print(f"[GitHub] No commits to push")
+                
+        except Exception as e:
+            print(f"[GitHub] Error in create_branch_and_push_fixes: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
     
     return commit_shas
 
@@ -165,7 +205,8 @@ def analyze_and_fix_repo(
         branch_name=branch_name,
         access_token=access_token,
         fixes=analysis_result['selected_fixes'],
-        deployment_id=deployment_id
+        deployment_id=deployment_id,
+        base_branch=branch
     )
     
     # Update score with commit count
