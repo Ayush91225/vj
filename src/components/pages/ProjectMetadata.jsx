@@ -1,11 +1,62 @@
 import { useState } from 'react';
+import { Skeleton } from '../ui/Skeleton';
 import './ProjectMetadata.css';
 
-export const ProjectMetadata = ({ project }) => {
-  const { metadata } = project;
+export const ProjectMetadata = ({ project, loading }) => {
   const [envModalOpen, setEnvModalOpen] = useState(false);
   const [envVars, setEnvVars] = useState([{ key: '', value: '' }]);
   const [saving, setSaving] = useState(false);
+  
+  if (loading) {
+    return (
+      <div className="project-metadata">
+        <div className="meta-header">
+          <div className="meta-title-section">
+            <Skeleton width="180px" height="28px" borderRadius="6px" />
+            <Skeleton width="100px" height="18px" borderRadius="6px" style={{ marginTop: '8px' }} />
+          </div>
+          <Skeleton width="80px" height="24px" borderRadius="12px" />
+        </div>
+
+        <div className="meta-grid">
+          <div className="meta-col-main">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="info-section">
+                {[...Array(2)].map((_, j) => (
+                  <div key={j} className="info-row">
+                    <Skeleton width="120px" height="14px" borderRadius="4px" />
+                    <Skeleton width="200px" height="16px" borderRadius="4px" />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          <div className="meta-col-side">
+            <Skeleton width="100%" height="40px" borderRadius="6px" style={{ marginBottom: '16px' }} />
+            <div className="score-section">
+              <Skeleton width="80px" height="14px" borderRadius="4px" style={{ marginBottom: '12px' }} />
+              <Skeleton width="60px" height="48px" borderRadius="6px" style={{ marginBottom: '8px' }} />
+              <Skeleton width="70px" height="12px" borderRadius="4px" />
+            </div>
+            <div className="score-breakdown" style={{ marginTop: '20px' }}>
+              {[...Array(4)].map((_, i) => (
+                <div key={i} style={{ marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <Skeleton width="60px" height="14px" borderRadius="4px" />
+                    <Skeleton width="20px" height="14px" borderRadius="4px" />
+                  </div>
+                  <Skeleton width="100%" height="6px" borderRadius="3px" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  const { metadata } = project;
   
   const displayScore = Math.min(metadata.totalScore, 100);
   const issues = [

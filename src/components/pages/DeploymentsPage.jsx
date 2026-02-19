@@ -124,29 +124,51 @@ export const DeploymentsPage = ({ searchQuery }) => {
         </div>
       ) : (
         <div className="deployments-list">
-          {filteredDeployments.map(deployment => (
-            <div 
-              key={deployment.id} 
-              className="deployment-row"
-              onClick={() => navigate(`/deploy/${projectId}/${deployment.commit}`)}
-            >
-              <div className="deployment-left">
-                <div className="deployment-commit">
-                  <code className="commit-hash">{deployment.commit}</code>
-                  <span className="commit-message">{deployment.message}</span>
+          {loading ? (
+            [...Array(4)].map((_, i) => (
+              <div key={i} className="deployment-row" style={{ cursor: 'default' }}>
+                <div className="deployment-left" style={{ flex: 1 }}>
+                  <div className="deployment-commit" style={{ marginBottom: '8px' }}>
+                    <Skeleton width="80px" height="16px" borderRadius="4px" style={{ marginRight: '12px' }} />
+                    <Skeleton width="250px" height="16px" borderRadius="4px" />
+                  </div>
+                  <div className="deployment-info" style={{ display: 'flex', gap: '12px' }}>
+                    <Skeleton width="60px" height="14px" borderRadius="4px" />
+                    <Skeleton width="50px" height="14px" borderRadius="4px" />
+                    <Skeleton width="50px" height="14px" borderRadius="4px" />
+                  </div>
                 </div>
-                <div className="deployment-info">
-                  <span className="deployment-branch">{deployment.branch}</span>
-                  <span className="deployment-time">{deployment.time}</span>
-                  <span className="deployment-duration">{deployment.duration}</span>
+                <div className="deployment-right" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Skeleton width="8px" height="8px" borderRadius="50%" />
+                  <Skeleton width="50px" height="14px" borderRadius="4px" />
                 </div>
               </div>
-              <div className="deployment-right">
-                <span className={`status-dot ${deployment.status}`}></span>
-                <span className="status-text">{deployment.status === 'ready' ? 'Ready' : 'Error'}</span>
+            ))
+          ) : (
+            filteredDeployments.map(deployment => (
+              <div 
+                key={deployment.id} 
+                className="deployment-row"
+                onClick={() => navigate(`/deploy/${projectId}/${deployment.commit}`)}
+              >
+                <div className="deployment-left">
+                  <div className="deployment-commit">
+                    <code className="commit-hash">{deployment.commit}</code>
+                    <span className="commit-message">{deployment.message}</span>
+                  </div>
+                  <div className="deployment-info">
+                    <span className="deployment-branch">{deployment.branch}</span>
+                    <span className="deployment-time">{deployment.time}</span>
+                    <span className="deployment-duration">{deployment.duration}</span>
+                  </div>
+                </div>
+                <div className="deployment-right">
+                  <span className={`status-dot ${deployment.status}`}></span>
+                  <span className="status-text">{deployment.status === 'ready' ? 'Ready' : 'Error'}</span>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       )}
     </div>

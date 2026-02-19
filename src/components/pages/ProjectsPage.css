@@ -28,6 +28,10 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
   transition: transform 0.2s, box-shadow 0.2s;
   cursor: pointer;
+  text-align: left;
+  width: auto;
+  font-family: inherit;
+  font-size: inherit;
 }
 
 .credits-card:hover {

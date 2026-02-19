@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { useState } from 'react';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { NewProjectPage } from './components/pages/NewProjectPage';
 import { ProjectsPage } from './components/pages/ProjectsPage';
 import { DeploymentsPage } from './components/pages/DeploymentsPage';
@@ -10,21 +10,28 @@ import { VajraInfPage } from './components/pages/VajraInfPage';
 import { AuthPage } from './components/pages/AuthPage';
 import ProductionDeployment from './components/pages/ProductionDeployment';
 import { useResponsive } from './hooks/useResponsive';
+import { useUIStore } from './store';
 import { SIDEBAR_WIDE, SIDEBAR_SLIM, PAGE_META } from './constants';
 import './App.css';
 
 function AppContent() {
-  const [collapsed, setCollapsed] = useState(false);
-  const [devOpen, setDevOpen] = useState(true);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
-  
   const isMobile = useResponsive();
-  const slim = !isMobile && collapsed;
-  const sidebarWidth = slim ? SIDEBAR_SLIM : SIDEBAR_WIDE;
   
+  const { 
+    sidebarCollapsed, 
+    sidebarMobileOpen, 
+    devOpen, 
+    searchQuery,
+    setSidebarCollapsed,
+    setMobileOpen,
+    setDevOpen,
+    setSearchQuery 
+  } = useUIStore();
+  
+  const slim = !isMobile && sidebarCollapsed;
+  const sidebarWidth = slim ? SIDEBAR_SLIM : SIDEBAR_WIDE;
   const activePage = location.pathname.split('/')[1] || 'project';
 
   return (
@@ -32,9 +39,9 @@ function AppContent() {
       <Sidebar
         slim={slim}
         isMobile={isMobile}
-        mobileOpen={mobileOpen}
+        mobileOpen={sidebarMobileOpen}
         setMobileOpen={setMobileOpen}
-        setCollapsed={setCollapsed}
+        setCollapsed={setSidebarCollapsed}
         activePage={activePage}
         setActivePage={(page) => navigate(`/${page}`)}
         devOpen={devOpen}
@@ -69,7 +76,7 @@ function AppContent() {
             <Route path="/pricing" element={<ComingSoon label={PAGE_META.pricing?.title || ""} />} />
             <Route path="/docs" element={<ComingSoon label={PAGE_META.docs?.title || ""} />} />
             <Route path="/vajrainf" element={<VajraInfPage />} />
-          </Routes>
+            </Routes>
         </div>
       </div>
     </div>
@@ -78,12 +85,14 @@ function AppContent() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/auth" element={<AuthPage />} />
-        <Route path="/*" element={<AppContent />} />
-      </Routes>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/*" element={<AppContent />} />
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

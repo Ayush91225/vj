@@ -1,9 +1,10 @@
-import { List, Gift, Plus, MagnifyingGlass } from 'phosphor-react';
+import { List, MagnifyingGlass, Plus } from 'phosphor-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { memo } from 'react';
 import { PAGE_META } from '../../constants';
 import './Header.css';
 
-export const Header = ({ activePage, isMobile, setMobileOpen, searchQuery, setSearchQuery }) => {
+export const Header = memo(function Header({ activePage, isMobile, setMobileOpen, searchQuery, setSearchQuery }) {
   const { title, sub } = PAGE_META[activePage] || { title: "", sub: "" };
   const navigate = useNavigate();
   const location = useLocation();
@@ -15,7 +16,11 @@ export const Header = ({ activePage, isMobile, setMobileOpen, searchQuery, setSe
     <>
       {isMobile && (
         <div className="mobile-topbar">
-          <button onClick={() => setMobileOpen(true)} className="menu-button">
+          <button 
+            onClick={() => setMobileOpen(true)} 
+            className="menu-button"
+            aria-label="Open navigation menu"
+          >
             <List size={20} weight="regular" />
           </button>
           <span className="mobile-logo">VajraOpz</span>
@@ -31,29 +36,35 @@ export const Header = ({ activePage, isMobile, setMobileOpen, searchQuery, setSe
           {activePage === "project" && (
             <>
               <div className="search-bar">
-                <MagnifyingGlass size={16} weight="regular" />
+                <MagnifyingGlass size={16} weight="regular" aria-hidden="true" />
                 <input 
                   type="text" 
                   placeholder="Search projects..." 
                   className="search-input" 
                   value={searchQuery || ''}
                   onChange={(e) => setSearchQuery?.(e.target.value)}
+                  aria-label="Search projects"
                 />
               </div>
-              <button className="action-button primary" onClick={() => navigate('/add')}>
+              <button 
+                className="action-button primary" 
+                onClick={() => navigate('/add')}
+                aria-label="Create new project"
+              >
                 <Plus size={14} weight="bold" /> New Project
               </button>
             </>
           )}
           {activePage === "deploy" && !isDeployWithId && (
             <div className="search-bar">
-              <MagnifyingGlass size={16} weight="regular" />
+              <MagnifyingGlass size={16} weight="regular" aria-hidden="true" />
               <input 
                 type="text" 
                 placeholder={isDeployWithProject ? "Search deployments..." : "Search projects..."}
                 className="search-input" 
                 value={searchQuery || ''}
                 onChange={(e) => setSearchQuery?.(e.target.value)}
+                aria-label={isDeployWithProject ? "Search deployments" : "Search projects"}
               />
             </div>
           )}
@@ -61,4 +72,4 @@ export const Header = ({ activePage, isMobile, setMobileOpen, searchQuery, setSe
       </div>
     </>
   );
-};
+});
