@@ -101,6 +101,8 @@ def route_graphql(body: Dict[str, Any]) -> Dict[str, Any]:
         return handle_get_deployment(variables)
     elif 'getCommits' in query_normalized:
         return handle_get_commits(variables)
+    elif 'getFixes' in query_normalized:
+        return handle_get_fixes(variables)
     else:
         print(f"Unknown query: {query_normalized[:200]}")
         return create_response(400, {'errors': [{'message': 'Unknown query or mutation'}]})
@@ -572,6 +574,41 @@ def handle_get_commits(variables: Dict[str, Any]) -> Dict[str, Any]:
     except Exception as e:
         print(f"Get commits error: {e}")
         return create_response(500, {'errors': [{'message': f'Get commits error: {str(e)}'}]})
+
+
+def handle_get_fixes(variables: Dict[str, Any]) -> Dict[str, Any]:
+    """Get fixes for a deployment"""
+    try:
+        user_id = _get_user_from_token(variables.get('token'))
+        if not user_id:
+            return create_response(401, {'errors': [{'message': 'Unauthorized'}]})
+        
+        deployment_id = variables.get('deploymentId')
+        if not deployment_id:
+            return create_response(400, {'errors': [{'message': 'Missing deploymentId'}]})
+        
+        if not IS_LOCAL:
+            try:
+                fixes_table = dynamodb.Table('vajraopz-fixes')
+                response = fixes_table.query(
+                    KeyConditionExpression='deployment_id = :did',
+                    ExpressionAttributeValues={':did': deployment_id}
+                )
+                fixes = response.get('Items', [])
+            except Exception as e:
+                print(f'[GetFixes] DynamoDB error: {e}')
+                fixes = []
+        else:
+            fixes = []
+        
+        return create_response(200, {
+            'data': {
+                'getFixes': fixes
+            }
+        })
+    except Exception as e:
+        print(f"Get fixes error: {e}")
+        return create_response(500, {'errors': [{'message': f'Get fixes error: {str(e)}'}]})
 
 
 # =====================================================================

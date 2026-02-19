@@ -32,14 +32,16 @@ def save_analysis(deployment_id: str, run_id: str, data: Dict[str, Any]):
 
 
 def save_fixes(deployment_id: str, fixes: List[Dict[str, Any]]):
-    """Save individual fixes"""
+    """Save individual fixes with status"""
     for i, fix in enumerate(fixes):
         fixes_table.put_item(Item={
             'deployment_id': deployment_id,
             'fix_id': f"{deployment_id}_{i}",
             'file': fix['file'],
             'line': fix['line'],
-            'type': fix['type'],
+            'bug_type': fix['type'],  # LINTING, SYNTAX, LOGIC, TYPE_ERROR, IMPORT, INDENTATION
+            'commit_message': f"{fix['type']} error in {fix['file']} line {fix['line']} → Fix: {fix['message']}",
+            'status': fix.get('status', 'fixed'),  # 'fixed' or 'failed'
             'message': fix['message'],
             'fix_code': fix['fix'],
             'agent': fix['agent'],
