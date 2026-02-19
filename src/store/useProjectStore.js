@@ -162,11 +162,14 @@ export const useProjectStore = create((set, get) => ({
     try {
       const token = backendApi.getToken();
       if (!token) {
+        console.log('[ProjectStore] No token found, setting empty projects');
         set({ projects: [], loading: false });
         return;
       }
 
+      console.log('[ProjectStore] Fetching projects from backend...');
       const dbProjects = await backendApi.getProjects(token);
+      console.log('[ProjectStore] Received projects:', dbProjects);
       
       // Transform DynamoDB projects to match UI format
       const transformedProjects = dbProjects.map((p, index) => ({
@@ -197,9 +200,10 @@ export const useProjectStore = create((set, get) => ({
         }
       }));
 
+      console.log('[ProjectStore] Transformed projects:', transformedProjects);
       set({ projects: transformedProjects, loading: false });
     } catch (error) {
-      console.error('Failed to fetch projects:', error);
+      console.error('[ProjectStore] Failed to fetch projects:', error);
       set({ error: error.message, loading: false, projects: [] });
     }
   },
