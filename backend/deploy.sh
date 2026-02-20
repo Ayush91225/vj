@@ -11,7 +11,7 @@ fi
 PROJECT_NAME="vajraopz"
 ENVIRONMENT="prod"
 AWS_REGION=${AWS_REGION:-"us-east-1"}
-AWS_PROFILE=${AWS_PROFILE:-"HomeGuru"}
+AWS_PROFILE=${AWS_PROFILE:-"default"}
 
 export AWS_PROFILE=$AWS_PROFILE
 
@@ -30,7 +30,7 @@ terraform apply -auto-approve \
 
 # Get outputs
 VPC_ID=$(terraform output -raw vpc_id)
-SUBNET_IDS=$(terraform output -json subnet_ids | jq -r '.[] | @csv' | tr -d '"' | tr ',' ' ')
+SUBNET_IDS=$(terraform output -json subnet_ids | jq -r 'join(",")')
 SECURITY_GROUP_ID=$(terraform output -raw security_group_id)
 ECS_CLUSTER_NAME=$(terraform output -raw ecs_cluster_name)
 S3_BUCKET_NAME=$(terraform output -raw s3_bucket_name)
@@ -41,12 +41,11 @@ cd ..
 # Step 2: Build and push Docker image
 echo "🐳 Building and pushing Docker image..."
 
-ECR_REPO=$(aws ecr describe-repositories --repository-names "$PROJECT_NAME-$ENVIRONMENT-agent" --query 'repositories[0].repositoryUri' --output text 2>/dev/null || echo "")
+ECR_REPO=$(aws ecr describe-repositories --repository-names "$PROJECT_NAME-$ENVIRONMENT-agent" --region $AWS_REGION --query 'repositories[0].repositoryUri' --output text 2>/dev/null || echo "")
 
 if [ -z "$ECR_REPO" ]; then
     echo "Creating ECR repository..."
-    aws ecr create-repository --repository-name "$PROJECT_NAME-$ENVIRONMENT-agent" --region $AWS_REGION
-    ECR_REPO=$(aws ecr describe-repositories --repository-names "$PROJECT_NAME-$ENVIRONMENT-agent" --query 'repositories[0].repositoryUri' --output text)
+    ECR_REPO=$(aws ecr create-repository --repository-name "$PROJECT_NAME-$ENVIRONMENT-agent" --region $AWS_REGION --query 'repository.repositoryUri' --output text)
 fi
 
 aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO

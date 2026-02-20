@@ -12,6 +12,8 @@ terraform {
   }
 }
 
+data "aws_caller_identity" "current" {}
+
 provider "aws" {
   region  = var.aws_region
   profile = var.aws_profile
@@ -20,7 +22,7 @@ provider "aws" {
 variable "aws_profile" {
   description = "AWS CLI profile name"
   type        = string
-  default     = "HomeGuru"
+  default     = "default"
 }
 
 variable "aws_region" {
@@ -169,7 +171,7 @@ resource "aws_s3_bucket" "code_storage" {
 }
 
 resource "random_id" "bucket_suffix" {
-  byte_length = 4
+  byte_length = 8
 }
 
 resource "aws_s3_bucket_versioning" "code_storage" {
@@ -382,6 +384,48 @@ resource "aws_iam_role_policy" "lambda_dynamodb_policy" {
       }
     ]
   })
+}
+
+# ECS Task Definition for the Agent
+resource "aws_cloudwatch_log_group" "agent_log_group" {
+  name              = "/ecs/${var.project_name}-${var.environment}-agent"
+  retention_in_days = 7
+
+  tags = {
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+resource "aws_ecs_task_definition" "agent" {
+  family                   = "${var.project_name}-${var.environment}-agent"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "512"
+  memory                   = "1024"
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_execution_role.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "agent"
+      image     = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/${var.project_name}-${var.environment}-agent:latest"
+      essential = true
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.agent_log_group.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "ecs"
+        }
+      }
+    }
+  ])
+
+  tags = {
+    Environment = var.environment
+    Project     = var.project_name
+  }
 }
 
 # Outputs
