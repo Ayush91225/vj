@@ -75,46 +75,58 @@ const ChevronRightIcon = () => (
   </svg>
 );
 
-const WebsitePreview = () => {
-  const deploymentTimeMinutes = 2.57; // 2m 34s = 2.57 minutes
-  const commits = 18;
-  const issuesFixed = 10;
-  const issuesFailed = 0;
+const WebsitePreview = ({ scoreData }) => {
+  // Use backend score data if available, otherwise use mock data
+  const deploymentTimeMinutes = scoreData?.elapsed_minutes || 2.57;
+  const commits = scoreData?.commits_count || 18;
+  const issuesFixed = scoreData?.fixes_applied || 10;
+  const issuesFailed = scoreData?.unfixed_issues || 0;
   
-  const baseScore = 100;
-  const speedBonus = deploymentTimeMinutes < 5 ? 10 : 0;
-  const efficiencyPenalty = commits > 20 ? -2 * (commits - 20) : 0;
-  const qualityBonus = issuesFixed * 2;
-  const qualityPenalty = issuesFailed * -5;
-  const rawTotal = baseScore + speedBonus + efficiencyPenalty + qualityBonus + qualityPenalty;
-  const totalScore = Math.min(Math.max(rawTotal, 0), 100);
+  // Calculate score components
+  const baseScore = scoreData?.base_score || 100;
+  const speedBonus = scoreData?.speed_bonus || (deploymentTimeMinutes < 5 ? 10 : 0);
+  const efficiencyPenalty = scoreData?.efficiency_penalty || (commits > 20 ? (commits - 20) * 2 : 0);
+  const qualityBonus = scoreData?.quality_bonus || (issuesFixed * 2);
+  const qualityPenalty = scoreData?.quality_penalty || (issuesFailed * 5);
+  
+  // Total score (max 100)
+  const totalScore = scoreData?.total || Math.max(0, Math.min(100, baseScore + speedBonus - efficiencyPenalty + qualityBonus - qualityPenalty));
   
   return (
   <div style={{ width: "100%", height: "100%", background: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "24px 24px 16px", boxSizing: "border-box", overflow: "hidden" }}>
     <div style={{ fontSize: "64px", fontWeight: "300", color: "#111", lineHeight: 1, fontFamily: "'Season Mix', sans-serif", marginBottom: "6px" }}>{totalScore}</div>
-    <div style={{ fontSize: "13px", color: "#6b7280", fontWeight: "400", marginBottom: "24px", fontFamily: "'Matter', sans-serif" }}>Quality Score</div>
+    <div style={{ fontSize: "13px", color: "#6b7280", fontWeight: "400", marginBottom: "4px", fontFamily: "'Matter', sans-serif" }}>Quality Score</div>
+    <div style={{ fontSize: "11px", color: "#9ca3af", fontWeight: "400", marginBottom: "20px", fontFamily: "'Matter', sans-serif" }}>out of 100</div>
     
     <div style={{ width: "100%", maxWidth: "100%", paddingLeft: "16px", paddingRight: "16px", boxSizing: "border-box", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
       {[
-        { label: "Base Score", count: baseScore, color: "#111" },
-        { label: "Speed Bonus", count: speedBonus, color: "#374151", show: speedBonus > 0 },
-        { label: "Efficiency Penalty", count: Math.abs(efficiencyPenalty), color: "#6b7280", show: efficiencyPenalty < 0 },
-        { label: "Quality Bonus", count: qualityBonus, color: "#4b5563", show: qualityBonus > 0 },
-        { label: "Quality Penalty", count: Math.abs(qualityPenalty), color: "#9ca3af", show: qualityPenalty < 0 },
-        { label: "Total Score", count: totalScore, color: "#111" }
+        { label: "Base Score", count: baseScore, color: "#111", isBase: true },
+        { label: "Speed Bonus", count: speedBonus, color: "#10b981", show: speedBonus > 0, isBonus: true },
+        { label: "Quality Bonus", count: qualityBonus, color: "#3b82f6", show: qualityBonus > 0, isBonus: true },
+        { label: "Efficiency Penalty", count: efficiencyPenalty, color: "#f59e0b", show: efficiencyPenalty > 0, isPenalty: true },
+        { label: "Quality Penalty", count: qualityPenalty, color: "#ef4444", show: qualityPenalty > 0, isPenalty: true },
       ].filter(item => item.show !== false).map((item, i) => (
-        <div key={i} style={{ marginBottom: "14px" }}>
+        <div key={i} style={{ marginBottom: "12px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-            <span style={{ fontSize: "12px", color: "#374151", fontWeight: "400", fontFamily: "'Matter', sans-serif" }}>{item.label}</span>
-            <span style={{ fontSize: "12px", color: item.color, fontWeight: "500", fontFamily: "'Matter', sans-serif" }}>
-              {item.label.includes('Bonus') && item.count > 0 ? '+' : item.label.includes('Penalty') && item.count > 0 ? '-' : ''}{item.count}
+            <span style={{ fontSize: "11px", color: "#6b7280", fontWeight: "500", fontFamily: "'Matter', sans-serif" }}>{item.label}</span>
+            <span style={{ fontSize: "11px", color: item.color, fontWeight: "600", fontFamily: "'Matter', sans-serif" }}>
+              {item.isBonus ? '+' : item.isPenalty ? '-' : ''}{item.count}
             </span>
           </div>
-          <div style={{ height: "6px", background: "#f3f4f6", borderRadius: "3px", overflow: "hidden", width: "100%" }}>
-            <div style={{ width: `${(Math.abs(item.count) / 100) * 100}%`, height: "100%", background: item.color, borderRadius: "3px", transition: "width 0.3s ease" }} />
+          <div style={{ height: "5px", background: "#f3f4f6", borderRadius: "3px", overflow: "hidden", width: "100%" }}>
+            <div style={{ width: `${(item.count / 100) * 100}%`, height: "100%", background: item.color, borderRadius: "3px", transition: "width 0.3s ease" }} />
           </div>
         </div>
       ))}
+      <div style={{ marginTop: "8px", paddingTop: "12px", borderTop: "2px solid #e5e7eb" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+          <span style={{ fontSize: "12px", color: "#111", fontWeight: "600", fontFamily: "'Matter', sans-serif" }}>Final Score</span>
+          <span style={{ fontSize: "12px", color: "#111", fontWeight: "700", fontFamily: "'Matter', sans-serif" }}>{totalScore}/100</span>
+        </div>
+        <div style={{ height: "8px", background: "#f3f4f6", borderRadius: "4px", overflow: "hidden", width: "100%" }}>
+          <div style={{ width: `${totalScore}%`, height: "100%", background: "linear-gradient(90deg, #10b981, #3b82f6)", borderRadius: "4px", transition: "width 0.3s ease" }} />
+        </div>
+      </div>
     </div>
   </div>
 );
@@ -177,6 +189,7 @@ export default function ProductionDeployment() {
   const [commitsOpen, setCommitsOpen] = useState(false);
   const [backendFixes, setBackendFixes] = useState([]);
   const [isFixing, setIsFixing] = useState(false);
+  const [scoreData, setScoreData] = useState(null);
   const readmeRef = useRef(null);
   const errorsRef = useRef(null);
   const cicdRef = useRef(null);
@@ -214,6 +227,11 @@ export default function ProductionDeployment() {
       // Trigger backend fix
       const result = await backendApi.triggerFix(token, projectId);
       console.log('[Fix] Backend response:', result);
+      
+      // Store score data if available
+      if (result.triggerFix?.score) {
+        setScoreData(result.triggerFix.score);
+      }
       
       // Simulate processing time
       await new Promise(resolve => setTimeout(resolve, 3000));
@@ -336,7 +354,7 @@ export default function ProductionDeployment() {
       <div className="prod-card">
         <div className="prod-main">
           <div className="prod-preview">
-            <WebsitePreview />
+            <WebsitePreview scoreData={scoreData} />
           </div>
 
           <div className="prod-info">

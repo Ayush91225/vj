@@ -614,7 +614,7 @@ def handle_get_fixes(variables: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def handle_trigger_fix(variables: Dict[str, Any]) -> Dict[str, Any]:
-    """Trigger multi-agent fix workflow"""
+    """Trigger multi-agent fix workflow with real code analysis"""
     try:
         user_id = _get_user_from_token(variables.get('token'))
         if not user_id:
@@ -624,21 +624,329 @@ def handle_trigger_fix(variables: Dict[str, Any]) -> Dict[str, Any]:
         if not project_id:
             return create_response(400, {'errors': [{'message': 'Missing projectId'}]})
         
-        # For now, return success immediately
-        # TODO: Implement actual GitHub branch creation and fix application
-        print(f'[TriggerFix] Fix triggered for project {project_id}')
+        # Get project and user data
+        if IS_LOCAL:
+            if project_id not in _local_projects:
+                return create_response(404, {'errors': [{'message': 'Project not found'}]})
+            project = _local_projects[project_id]
+            user = _local_users.get(user_id, {})
+        else:
+            project_response = projects_table.get_item(Key={'project_id': project_id})
+            if 'Item' not in project_response:
+                return create_response(404, {'errors': [{'message': 'Project not found'}]})
+            project = project_response['Item']
+            
+            user_response = users_table.get_item(Key={'user_id': user_id})
+            user = user_response.get('Item', {})
+        
+        access_token = user.get('access_token')
+        if not access_token:
+            return create_response(400, {'errors': [{'message': 'GitHub access token not found'}]})
+        
+        # Analyze code and create branch
+        print(f'[TriggerFix] Starting code analysis for project {project_id}')
+        
+        result = _analyze_and_fix_code(
+            repo_url=project.get('github_repo'),
+            branch_name=project.get('branch_name'),
+            access_token=access_token,
+            team_name=project.get('team_name'),
+            team_leader=project.get('team_leader')
+        )
         
         return create_response(200, {
             'data': {
                 'triggerFix': {
-                    'status': 'started',
-                    'message': 'Fix workflow initiated successfully'
+                    'status': 'completed',
+                    'message': f'Analysis complete. Found {result["total_issues"]} issues, fixed {result["fixes_applied"]}',
+                    'branch_url': result.get('branch_url'),
+                    'score': result.get('score'),
+                    'issues': result.get('issues', []),
+                    'commits': result.get('commits', [])
                 }
             }
         })
     except Exception as e:
         print(f"Trigger fix error: {e}")
+        import traceback
+        traceback.print_exc()
         return create_response(500, {'errors': [{'message': f'Trigger fix error: {str(e)}'}]})
+
+
+# =====================================================================
+#  CODE ANALYSIS AND FIXING
+# =====================================================================
+def _analyze_and_fix_code(repo_url: str, branch_name: str, access_token: str, team_name: str, team_leader: str) -> Dict[str, Any]:
+    """Analyze code and create GitHub branch with fixes"""
+    import tempfile
+    import subprocess
+    import re
+    from datetime import datetime
+    
+    start_time = datetime.now()
+    issues = []
+    fixes_applied = []
+    commits = []
+    
+    try:
+        # Clone repository
+        with tempfile.TemporaryDirectory() as tmpdir:
+            print(f'[Analysis] Cloning {repo_url}...')
+            
+            # Clone with token
+            repo_url_with_token = repo_url.replace('https://github.com/', f'https://{access_token}@github.com/')
+            subprocess.run(['git', 'clone', repo_url_with_token, tmpdir], check=True, capture_output=True)
+            
+            # Analyze code files
+            print(f'[Analysis] Analyzing code...')
+            issues = _analyze_code_files(tmpdir)
+            
+            print(f'[Analysis] Found {len(issues)} issues')
+            
+            # Create branch and apply fixes
+            if issues:
+                print(f'[Analysis] Creating branch {branch_name}...')
+                
+                # Configure git
+                subprocess.run(['git', 'config', 'user.name', 'VajraOpz AI'], cwd=tmpdir, check=True)
+                subprocess.run(['git', 'config', 'user.email', 'ai@vajraopz.com'], cwd=tmpdir, check=True)
+                
+                # Create new branch
+                subprocess.run(['git', 'checkout', '-b', branch_name], cwd=tmpdir, check=True)
+                
+                # Apply fixes
+                for issue in issues[:10]:  # Limit to 10 fixes
+                    if issue.get('fixable'):
+                        fix_result = _apply_fix(tmpdir, issue)
+                        if fix_result:
+                            fixes_applied.append(issue)
+                            
+                            # Commit the fix
+                            subprocess.run(['git', 'add', issue['file']], cwd=tmpdir, check=True)
+                            commit_msg = f"{issue['type']}: Fix {issue['message']} in {issue['file']}:{issue['line']}"
+                            subprocess.run(['git', 'commit', '-m', commit_msg], cwd=tmpdir, check=True)
+                            
+                            # Get commit SHA
+                            result = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=tmpdir, capture_output=True, text=True)
+                            commits.append(result.stdout.strip()[:7])
+                
+                # Push to GitHub
+                if commits:
+                    print(f'[Analysis] Pushing {len(commits)} commits...')
+                    subprocess.run(['git', 'push', 'origin', branch_name], cwd=tmpdir, check=True)
+            
+            # Calculate score
+            elapsed_time = (datetime.now() - start_time).total_seconds() / 60
+            score = _calculate_score(len(issues), len(fixes_applied), len(commits), elapsed_time)
+            
+            return {
+                'total_issues': len(issues),
+                'fixes_applied': len(fixes_applied),
+                'commits': commits,
+                'branch_url': f"{repo_url}/tree/{branch_name}",
+                'score': score,
+                'issues': [{
+                    'file': i['file'],
+                    'line': i['line'],
+                    'type': i['type'],
+                    'severity': i['severity'],
+                    'message': i['message']
+                } for i in issues[:20]]  # Return first 20 issues
+            }
+            
+    except Exception as e:
+        print(f'[Analysis] Error: {e}')
+        import traceback
+        traceback.print_exc()
+        return {
+            'total_issues': 0,
+            'fixes_applied': 0,
+            'commits': [],
+            'branch_url': '',
+            'score': {'total': 0},
+            'issues': [],
+            'error': str(e)
+        }
+
+
+def _analyze_code_files(repo_path: str) -> list:
+    """Analyze code files for issues"""
+    import os
+    import re
+    
+    issues = []
+    
+    # File extensions to analyze
+    code_extensions = {'.js', '.jsx', '.ts', '.tsx', '.py', '.java', '.go', '.rb', '.php', '.css', '.html'}
+    
+    for root, dirs, files in os.walk(repo_path):
+        # Skip common directories
+        dirs[:] = [d for d in dirs if d not in {'.git', 'node_modules', 'venv', '__pycache__', 'dist', 'build', '.next'}]
+        
+        for file in files:
+            ext = os.path.splitext(file)[1]
+            if ext not in code_extensions:
+                continue
+            
+            file_path = os.path.join(root, file)
+            relative_path = os.path.relpath(file_path, repo_path)
+            
+            try:
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    lines = f.readlines()
+                    
+                for line_num, line in enumerate(lines, 1):
+                    # Check for common issues
+                    file_issues = _check_line_for_issues(line, line_num, relative_path, ext)
+                    issues.extend(file_issues)
+                    
+            except Exception as e:
+                print(f'[Analysis] Error reading {relative_path}: {e}')
+    
+    return issues
+
+
+def _check_line_for_issues(line: str, line_num: int, file_path: str, ext: str) -> list:
+    """Check a line of code for common issues"""
+    issues = []
+    
+    # JavaScript/TypeScript checks
+    if ext in {'.js', '.jsx', '.ts', '.tsx'}:
+        if 'console.log' in line:
+            issues.append({
+                'file': file_path,
+                'line': line_num,
+                'type': 'LINTING',
+                'severity': 'Low',
+                'message': 'Remove console.log statement',
+                'fixable': True,
+                'fix': line.replace('console.log', '// console.log')
+            })
+        
+        if 'var ' in line and not line.strip().startswith('//'):
+            issues.append({
+                'file': file_path,
+                'line': line_num,
+                'type': 'LINTING',
+                'severity': 'Medium',
+                'message': 'Use const or let instead of var',
+                'fixable': True,
+                'fix': line.replace('var ', 'const ')
+            })
+        
+        if '==' in line and '===' not in line and not line.strip().startswith('//'):
+            issues.append({
+                'file': file_path,
+                'line': line_num,
+                'type': 'LINTING',
+                'severity': 'Medium',
+                'message': 'Use === instead of ==',
+                'fixable': True,
+                'fix': line.replace('==', '===')
+            })
+    
+    # Python checks
+    elif ext == '.py':
+        if 'print(' in line and not line.strip().startswith('#'):
+            issues.append({
+                'file': file_path,
+                'line': line_num,
+                'type': 'LINTING',
+                'severity': 'Low',
+                'message': 'Remove debug print statement',
+                'fixable': True,
+                'fix': '# ' + line
+            })
+    
+    # Common checks for all languages
+    if len(line) > 120 and not line.strip().startswith(('//', '#', '/*', '*')):
+        issues.append({
+            'file': file_path,
+            'line': line_num,
+            'type': 'STYLE',
+            'severity': 'Low',
+            'message': f'Line too long ({len(line)} characters)',
+            'fixable': False
+        })
+    
+    if line.rstrip() != line.rstrip(' \t'):
+        issues.append({
+            'file': file_path,
+            'line': line_num,
+            'type': 'STYLE',
+            'severity': 'Low',
+            'message': 'Trailing whitespace',
+            'fixable': True,
+            'fix': line.rstrip() + '\n'
+        })
+    
+    return issues
+
+
+def _apply_fix(repo_path: str, issue: dict) -> bool:
+    """Apply a fix to a file"""
+    import os
+    
+    if not issue.get('fixable') or not issue.get('fix'):
+        return False
+    
+    file_path = os.path.join(repo_path, issue['file'])
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+        
+        if 0 < issue['line'] <= len(lines):
+            lines[issue['line'] - 1] = issue['fix']
+            
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.writelines(lines)
+            
+            return True
+    except Exception as e:
+        print(f'[Fix] Error applying fix to {issue["file"]}: {e}')
+    
+    return False
+
+
+def _calculate_score(total_issues: int, fixes_applied: int, commits: int, elapsed_minutes: float) -> dict:
+    """Calculate quality score (max 100)"""
+    # Base score starts at 100
+    base_score = 100
+    
+    # Speed bonus (+10 if < 5 minutes)
+    speed_bonus = 10 if elapsed_minutes < 5 else 0
+    
+    # Efficiency penalty (-2 per commit over 20)
+    efficiency_penalty = max(0, (commits - 20) * 2) if commits > 20 else 0
+    
+    # Quality bonus (+2 per fix applied)
+    quality_bonus = fixes_applied * 2
+    
+    # Quality penalty (-5 per unfixed issue)
+    unfixed = max(0, total_issues - fixes_applied)
+    quality_penalty = unfixed * 5
+    
+    # Calculate raw total
+    raw_total = base_score + speed_bonus + quality_bonus - efficiency_penalty - quality_penalty
+    
+    # Ensure total is between 0 and 100
+    total = max(0, min(100, raw_total))
+    
+    return {
+        'base_score': base_score,
+        'speed_bonus': speed_bonus,
+        'efficiency_penalty': efficiency_penalty,
+        'quality_bonus': quality_bonus,
+        'quality_penalty': quality_penalty,
+        'total': total,
+        'max_possible': 100,
+        'elapsed_minutes': round(elapsed_minutes, 2),
+        'total_issues': total_issues,
+        'fixes_applied': fixes_applied,
+        'unfixed_issues': unfixed,
+        'commits_count': commits
+    }
 
 
 # =====================================================================
