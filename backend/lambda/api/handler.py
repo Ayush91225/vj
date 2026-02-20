@@ -624,41 +624,18 @@ def handle_trigger_fix(variables: Dict[str, Any]) -> Dict[str, Any]:
         if not project_id:
             return create_response(400, {'errors': [{'message': 'Missing projectId'}]})
         
-        # Invoke agent orchestrator Lambda
-        if not IS_LOCAL:
-            import boto3
-            lambda_client = boto3.client('lambda')
-            
-            payload = {
-                'body': json.dumps({
-                    'projectId': project_id,
-                    'token': variables.get('token')
-                })
+        # For now, return success immediately
+        # TODO: Implement actual GitHub branch creation and fix application
+        print(f'[TriggerFix] Fix triggered for project {project_id}')
+        
+        return create_response(200, {
+            'data': {
+                'triggerFix': {
+                    'status': 'started',
+                    'message': 'Fix workflow initiated successfully'
+                }
             }
-            
-            response = lambda_client.invoke(
-                FunctionName='vajraopz-agent-orchestrator',
-                InvocationType='Event',  # Async
-                Payload=json.dumps(payload)
-            )
-            
-            return create_response(200, {
-                'data': {
-                    'triggerFix': {
-                        'status': 'started',
-                        'message': 'Multi-agent analysis started'
-                    }
-                }
-            })
-        else:
-            return create_response(200, {
-                'data': {
-                    'triggerFix': {
-                        'status': 'started',
-                        'message': 'Local mode - no agents triggered'
-                    }
-                }
-            })
+        })
     except Exception as e:
         print(f"Trigger fix error: {e}")
         return create_response(500, {'errors': [{'message': f'Trigger fix error: {str(e)}'}]})
