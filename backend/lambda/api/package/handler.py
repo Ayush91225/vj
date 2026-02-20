@@ -259,7 +259,7 @@ def handle_github_callback(variables: Dict[str, Any]) -> Dict[str, Any]:
 #  PROJECT MANAGEMENT
 # =====================================================================
 def handle_create_project(variables: Dict[str, Any]) -> Dict[str, Any]:
-    """Create a new project"""
+    """Create a new project and branch on GitHub"""
     try:
         user_id = _get_user_from_token(variables.get('token'))
         if not user_id:
@@ -272,11 +272,52 @@ def handle_create_project(variables: Dict[str, Any]) -> Dict[str, Any]:
         if not all([github_repo, team_name, team_leader]):
             return create_response(400, {'errors': [{'message': 'Missing required fields: githubRepo, teamName, teamLeader'}]})
 
+        # Get user's access token
+        access_token = None
+        if IS_LOCAL:
+            user_data = _local_users.get(user_id)
+            if user_data:
+                access_token = user_data.get('access_token')
+        else:
+            user = users_table.get_item(Key={'user_id': user_id})
+            if 'Item' in user:
+                access_token = user['Item'].get('access_token')
+        
+        if not access_token:
+            return create_response(400, {'errors': [{'message': 'GitHub access token not found'}]})
+
         project_id = str(uuid.uuid4())
         now = datetime.now(timezone.utc).isoformat()
-
-        # Generate branch name per requirements
         branch_name = _generate_branch_name(team_name, team_leader)
+
+        # Create branch on GitHub using PAT
+        repo_clean = github_repo.replace('https://github.com/', '').replace('http://github.com/', '').rstrip('/').replace('.git', '')
+        parts = repo_clean.split('/')
+        if len(parts) >= 2:
+            owner, repo = parts[0], parts[1]
+            headers = {'Authorization': f'token {access_token}', 'Accept': 'application/vnd.github.v3+json'}
+            
+            try:
+                repo_response = requests.get(f'https://api.github.com/repos/{owner}/{repo}', headers=headers, timeout=10)
+                if repo_response.ok:
+                    default_branch = repo_response.json()['default_branch']
+                    ref_response = requests.get(f'https://api.github.com/repos/{owner}/{repo}/git/ref/heads/{default_branch}', headers=headers, timeout=10)
+                    if ref_response.ok:
+                        sha = ref_response.json()['object']['sha']
+                        create_response_gh = requests.post(
+                            f'https://api.github.com/repos/{owner}/{repo}/git/refs',
+                            headers=headers,
+                            json={'ref': f'refs/heads/{branch_name}', 'sha': sha},
+                            timeout=10
+                        )
+                        if create_response_gh.ok:
+                            print(f'[CreateProject] ✅ Created branch {branch_name}')
+                        elif create_response_gh.status_code == 422:
+                            print(f'[CreateProject] Branch {branch_name} already exists')
+                        else:
+                            print(f'[CreateProject] Failed: {create_response_gh.status_code}')
+            except Exception as e:
+                print(f'[CreateProject] Error: {e}')
 
         project_data = {
             'project_id': project_id,
@@ -399,37 +440,8 @@ def handle_trigger_agent(variables: Dict[str, Any]) -> Dict[str, Any]:
                 ExpressionAttributeValues={':status': 'running', ':updated_at': now}
             )
 
-            # Launch ECS task for agent execution (production only)
-            try:
-                subnet_ids = os.environ.get('SUBNET_IDS', '').split(',')
-                security_group_id = os.environ.get('SECURITY_GROUP_ID', '')
-
-                ecs.run_task(
-                    cluster=ECS_CLUSTER,
-                    taskDefinition=f'vajraopz-prod-agent',
-                    launchType='FARGATE',
-                    networkConfiguration={
-                        'awsvpcConfiguration': {
-                            'subnets': subnet_ids,
-                            'securityGroups': [security_group_id],
-                            'assignPublicIp': 'ENABLED'
-                        }
-                    },
-                    overrides={
-                        'containerOverrides': [{
-                            'name': 'agent',
-                            'environment': [
-                                {'name': 'REPO_URL', 'value': project_data['github_repo']},
-                                {'name': 'TEAM_NAME', 'value': project_data['team_name']},
-                                {'name': 'TEAM_LEADER', 'value': project_data['team_leader']},
-                                {'name': 'DEPLOYMENT_ID', 'value': deployment_id},
-                                {'name': 'RUN_ID', 'value': run_id},
-                            ]
-                        }]
-                    }
-                )
-            except Exception as ecs_error:
-                print(f"ECS task launch failed (non-fatal): {ecs_error}")
+            # ECS task disabled - using Lambda worker instead
+            print(f"[TriggerAgent] Skipping ECS task (not configured)")
 
         return create_response(200, {
             'data': {

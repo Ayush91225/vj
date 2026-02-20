@@ -56,7 +56,7 @@ if aws lambda get-function --function-name $WORKER_FUNCTION --region $AWS_REGION
         --function-name $WORKER_FUNCTION \
         --timeout 900 \
         --memory-size 3008 \
-        --environment "Variables={S3_BUCKET=$S3_BUCKET,DEPLOYMENTS_TABLE=vajraopz-prod-deployments,PROJECTS_TABLE=vajraopz-prod-projects,CLAUDE_API_KEY=$CLAUDE_API_KEY,GEMINI_API_KEY=$GEMINI_API_KEY,OPENROUTER_API_KEY=$OPENROUTER_API_KEY}" \
+        --environment "Variables={S3_BUCKET=$S3_BUCKET,DEPLOYMENTS_TABLE=vajraopz-prod-deployments,PROJECTS_TABLE=vajraopz-projects,CLAUDE_API_KEY=$CLAUDE_API_KEY,GEMINI_API_KEY=$GEMINI_API_KEY,OPENROUTER_API_KEY=$OPENROUTER_API_KEY}" \
         --region $AWS_REGION > /dev/null
 else
     echo "Creating worker..."
@@ -69,7 +69,7 @@ else
         --timeout 900 \
         --memory-size 3008 \
         --region $AWS_REGION \
-        --environment "Variables={S3_BUCKET=$S3_BUCKET,DEPLOYMENTS_TABLE=vajraopz-prod-deployments,PROJECTS_TABLE=vajraopz-prod-projects,CLAUDE_API_KEY=$CLAUDE_API_KEY,GEMINI_API_KEY=$GEMINI_API_KEY,OPENROUTER_API_KEY=$OPENROUTER_API_KEY}" > /dev/null
+        --environment "Variables={S3_BUCKET=$S3_BUCKET,DEPLOYMENTS_TABLE=vajraopz-prod-deployments,PROJECTS_TABLE=vajraopz-projects,CLAUDE_API_KEY=$CLAUDE_API_KEY,GEMINI_API_KEY=$GEMINI_API_KEY,OPENROUTER_API_KEY=$OPENROUTER_API_KEY}" > /dev/null
 fi
 
 echo "✅ Worker deployed!"
@@ -112,7 +112,7 @@ if aws lambda get-function --function-name $API_FUNCTION --region $AWS_REGION 2>
         --function-name $API_FUNCTION \
         --timeout 30 \
         --memory-size 512 \
-        --environment "Variables={JWT_SECRET=$JWT_SECRET,GITHUB_CLIENT_ID=$GITHUB_CLIENT_ID,GITHUB_CLIENT_SECRET=$GITHUB_CLIENT_SECRET,FRONTEND_URL=https://vj-eta.vercel.app,CALLBACK_URL=https://vj-eta.vercel.app/auth/callback,USERS_TABLE=vajraopz-prod-users,PROJECTS_TABLE=vajraopz-prod-projects,DEPLOYMENTS_TABLE=vajraopz-prod-deployments,AGENT_RUNS_TABLE=vajraopz-prod-agent-runs,S3_BUCKET=$S3_BUCKET}" \
+        --environment "Variables={JWT_SECRET=$JWT_SECRET,GITHUB_CLIENT_ID=$GITHUB_CLIENT_ID,GITHUB_CLIENT_SECRET=$GITHUB_CLIENT_SECRET,FRONTEND_URL=https://vj-eta.vercel.app,CALLBACK_URL=https://vj-eta.vercel.app/auth/callback,USERS_TABLE=vajraopz-users,PROJECTS_TABLE=vajraopz-projects,DEPLOYMENTS_TABLE=vajraopz-prod-deployments,AGENT_RUNS_TABLE=vajraopz-prod-agent-runs,S3_BUCKET=$S3_BUCKET}" \
         --region $AWS_REGION > /dev/null
 else
     echo "Creating API..."
@@ -125,7 +125,7 @@ else
         --timeout 30 \
         --memory-size 512 \
         --region $AWS_REGION \
-        --environment "Variables={JWT_SECRET=$JWT_SECRET,GITHUB_CLIENT_ID=$GITHUB_CLIENT_ID,GITHUB_CLIENT_SECRET=$GITHUB_CLIENT_SECRET,FRONTEND_URL=https://vj-eta.vercel.app,CALLBACK_URL=https://vj-eta.vercel.app/auth/callback,USERS_TABLE=vajraopz-prod-users,PROJECTS_TABLE=vajraopz-prod-projects,DEPLOYMENTS_TABLE=vajraopz-prod-deployments,AGENT_RUNS_TABLE=vajraopz-prod-agent-runs,S3_BUCKET=$S3_BUCKET}" > /dev/null
+        --environment "Variables={JWT_SECRET=$JWT_SECRET,GITHUB_CLIENT_ID=$GITHUB_CLIENT_ID,GITHUB_CLIENT_SECRET=$GITHUB_CLIENT_SECRET,FRONTEND_URL=https://vj-eta.vercel.app,CALLBACK_URL=https://vj-eta.vercel.app/auth/callback,USERS_TABLE=vajraopz-users,PROJECTS_TABLE=vajraopz-projects,DEPLOYMENTS_TABLE=vajraopz-prod-deployments,AGENT_RUNS_TABLE=vajraopz-prod-agent-runs,S3_BUCKET=$S3_BUCKET}" > /dev/null
 fi
 
 # Configure Function URL

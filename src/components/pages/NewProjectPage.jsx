@@ -81,18 +81,33 @@ export const NewProjectPage = () => {
       
       setLoadingRepos(true);
       try {
-        const response = await fetch(`https://api.github.com/users/${user.username}/repos?sort=updated&per_page=50`);
+        const token = backendApi.getToken();
+        const response = await fetch(`https://api.github.com/users/${user.username}/repos?sort=updated&per_page=50`, {
+          headers: token ? { 'Authorization': `token ${token}` } : {}
+        });
+        
+        if (!response.ok) {
+          console.error('GitHub API error:', response.status);
+          setGithubRepos([]);
+          return;
+        }
+        
         const repos = await response.json();
-        setGithubRepos(repos.map(repo => ({
-          name: repo.name,
-          url: repo.html_url,
-          description: repo.description || 'No description',
-          language: repo.language || 'Unknown',
-          stars: repo.stargazers_count,
-          updated: repo.updated_at
-        })));
+        if (Array.isArray(repos)) {
+          setGithubRepos(repos.map(repo => ({
+            name: repo.name,
+            url: repo.html_url,
+            description: repo.description || 'No description',
+            language: repo.language || 'Unknown',
+            stars: repo.stargazers_count,
+            updated: repo.updated_at
+          })));
+        } else {
+          setGithubRepos([]);
+        }
       } catch (error) {
         console.error('Failed to fetch GitHub repos:', error);
+        setGithubRepos([]);
       } finally {
         setLoadingRepos(false);
       }
