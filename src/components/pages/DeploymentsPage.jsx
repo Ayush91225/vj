@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Skeleton } from '../ui/Skeleton';
-import { useProjectStore } from '../../store';
+import { useProjectStore, useAuthStore } from '../../store';
 import { backendApi } from '../../services/backendApi';
 import './DeploymentsPage.css';
 
@@ -9,6 +9,7 @@ export const DeploymentsPage = ({ searchQuery }) => {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const { projects, fetchProjects, loading: projectsLoading } = useProjectStore();
+  const { token } = useAuthStore();
   const [commits, setCommits] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,8 +38,8 @@ export const DeploymentsPage = ({ searchQuery }) => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            query: `query GetCommits($githubRepo: String!, $branch: String) { getCommits(githubRepo: $githubRepo, branch: $branch) { sha message author date url } }`,
-            variables: { githubRepo: project.repo, branch: project.metadata.branchName || 'main' }
+            query: `query GetCommits($githubRepo: String!, $branch: String, $token: String) { getCommits(githubRepo: $githubRepo, branch: $branch, token: $token) { sha message author date url } }`,
+            variables: { githubRepo: project.repo, branch: project.metadata.branchName || 'main', token }
           })
         });
         const result = await response.json();
