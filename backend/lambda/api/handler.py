@@ -697,24 +697,37 @@ def _analyze_and_fix_code(repo_url: str, branch_name: str, access_token: str, te
             repo_url_with_token = repo_url.replace('https://github.com/', f'https://{access_token}@github.com/')
             subprocess.run(['git', 'clone', repo_url_with_token, tmpdir], check=True, capture_output=True)
             
+            # Configure git
+            subprocess.run(['git', 'config', 'user.name', 'VajraOpz AI'], cwd=tmpdir, check=True)
+            subprocess.run(['git', 'config', 'user.email', 'ai@vajraopz.com'], cwd=tmpdir, check=True)
+            
+            # Fetch all remote branches
+            subprocess.run(['git', 'fetch', 'origin'], cwd=tmpdir, check=True, capture_output=True)
+            
+            # Check if branch exists remotely
+            branch_check = subprocess.run(
+                ['git', 'ls-remote', '--heads', 'origin', branch_name],
+                cwd=tmpdir,
+                capture_output=True,
+                text=True
+            )
+            branch_exists = bool(branch_check.stdout.strip())
+            
+            if branch_exists:
+                print(f'[Analysis] Branch {branch_name} exists, checking out...')
+                subprocess.run(['git', 'checkout', branch_name], cwd=tmpdir, check=True)
+            else:
+                print(f'[Analysis] Creating new branch {branch_name}...')
+                subprocess.run(['git', 'checkout', '-b', branch_name], cwd=tmpdir, check=True)
+            
             # Analyze code files
             print(f'[Analysis] Analyzing code...')
             issues = _analyze_code_files(tmpdir)
             
             print(f'[Analysis] Found {len(issues)} issues')
             
-            # Create branch and apply fixes
+            # Apply fixes
             if issues:
-                print(f'[Analysis] Creating branch {branch_name}...')
-                
-                # Configure git
-                subprocess.run(['git', 'config', 'user.name', 'VajraOpz AI'], cwd=tmpdir, check=True)
-                subprocess.run(['git', 'config', 'user.email', 'ai@vajraopz.com'], cwd=tmpdir, check=True)
-                
-                # Create new branch
-                subprocess.run(['git', 'checkout', '-b', branch_name], cwd=tmpdir, check=True)
-                
-                # Apply fixes
                 for issue in issues[:10]:  # Limit to 10 fixes
                     if issue.get('fixable'):
                         fix_result = _apply_fix(tmpdir, issue)
@@ -732,8 +745,13 @@ def _analyze_and_fix_code(repo_url: str, branch_name: str, access_token: str, te
                 
                 # Push to GitHub
                 if commits:
-                    print(f'[Analysis] Pushing {len(commits)} commits...')
-                    subprocess.run(['git', 'push', 'origin', branch_name], cwd=tmpdir, check=True)
+                    print(f'[Analysis] Pushing {len(commits)} commits to {branch_name}...')
+                    if branch_exists:
+                        # Force push if branch exists
+                        subprocess.run(['git', 'push', '-f', 'origin', branch_name], cwd=tmpdir, check=True)
+                    else:
+                        # Normal push for new branch
+                        subprocess.run(['git', 'push', '-u', 'origin', branch_name], cwd=tmpdir, check=True)
             
             # Calculate score
             elapsed_time = (datetime.now() - start_time).total_seconds() / 60
