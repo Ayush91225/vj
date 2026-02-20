@@ -3,7 +3,7 @@ const isDev = typeof import.meta !== 'undefined'
   ? import.meta.env?.DEV
   : typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production';
 
-const PROD_API_URL = import.meta.env?.VITE_API_BASE_URL || 'https://qz4k4nhlwfo4p3jdkzsxpdfksu0hwqir.lambda-url.ap-south-1.on.aws';
+const PROD_API_URL = import.meta.env?.VITE_API_BASE_URL || 'https://7qwlci3xodqqlvvtupdlhrcume0xntdd.lambda-url.ap-south-1.on.aws';
 
 export const backendConfig = {
   apiUrl: isDev
@@ -19,7 +19,7 @@ export const backendConfig = {
 // GraphQL queries
 export const GRAPHQL_QUERIES = {
   GITHUB_AUTH: `
-    query githubAuth {
+    mutation githubAuth {
       githubAuth {
         url
         state
@@ -94,8 +94,8 @@ export const GRAPHQL_QUERIES = {
   `,
 
   GET_COMMITS: `
-    query getCommits($githubRepo: String!, $branch: String) {
-      getCommits(githubRepo: $githubRepo, branch: $branch) {
+    query getCommits($token: String, $githubRepo: String!, $branch: String) {
+      getCommits(token: $token, githubRepo: $githubRepo, branch: $branch) {
         sha
         message
         author
@@ -126,6 +126,29 @@ export const GRAPHQL_QUERIES = {
       triggerFix(token: $token, projectId: $projectId) {
         status
         message
+        deployment_id
+        branch_url
+        score {
+          total
+          base_score
+          speed_bonus
+          quality_bonus
+          efficiency_penalty
+          quality_penalty
+        }
+        issues {
+          file
+          line
+          type
+          severity
+          message
+        }
+        commits {
+          sha
+          message
+          file
+          line
+        }
       }
     }
   `

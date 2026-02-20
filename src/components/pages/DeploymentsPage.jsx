@@ -34,7 +34,7 @@ export const DeploymentsPage = ({ searchQuery }) => {
 
       console.log('[DeploymentsPage] Fetching commits for project:', project);
       try {
-        const response = await fetch('https://qz4k4nhlwfo4p3jdkzsxpdfksu0hwqir.lambda-url.ap-south-1.on.aws/', {
+        const response = await fetch('https://7qwlci3xodqqlvvtupdlhrcume0xntdd.lambda-url.ap-south-1.on.aws/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

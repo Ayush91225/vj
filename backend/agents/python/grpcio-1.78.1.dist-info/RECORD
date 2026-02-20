@@ -22,7 +22,7 @@ grpc/_cython/__pycache__/__init__.cpython-313.pyc,,
 grpc/_cython/_credentials/roots.pem,sha256=lhQzRMSuEJWIElssQdXa9lSl-vxuI_rDf3uj0p2n53Y,264440
 grpc/_cython/_cygrpc/__init__.py,sha256=w3kqSAyaZgP-W0890xR4L4WeBPGrtsQCQJe0FUFR0K0,577
 grpc/_cython/_cygrpc/__pycache__/__init__.cpython-313.pyc,,
-grpc/_cython/cygrpc.cpython-313-darwin.so,sha256=dZJYy7C5ufhJpTaxRWqVKeNZZ34ODGyuywjtNz5UzlE,37523552
+grpc/_cython/cygrpc.cpython-313-x86_64-linux-gnu.so,sha256=dxYeLxIpHQBOBFvwOcnzTyQkkjDnC-6rI5N_Wboa0Gs,15794712
 grpc/_grpcio_metadata.py,sha256=sSGjjrnB5UBBjoy_6AsQVmOzcTi332p7d9YXbAWCcus,26
 grpc/_interceptor.py,sha256=sbVfBJ5Jynjkxk3m95rQyRAcH6NmSk8Z3Jae4bDKajw,25804
 grpc/_observability.py,sha256=CeIlfW5qBv5ykleFq0ThFbY45A7CFZ2yxwrUC1thX6A,10551
@@ -115,6 +115,6 @@ grpc/framework/interfaces/face/utilities.py,sha256=jRmAmV0hXPXcN5a6Vg7OlBbcltGB6
 grpcio-1.78.1.dist-info/INSTALLER,sha256=zuuue4knoyJ-UwPPXg8fezS7VCrXJQrAP7zeNuwvFQg,4
 grpcio-1.78.1.dist-info/METADATA,sha256=9yFu3BFndbq4EqxiO34KqSu48wlGsu3sj9Qh1Fo3HX8,3764
 grpcio-1.78.1.dist-info/RECORD,,
-grpcio-1.78.1.dist-info/WHEEL,sha256=JLrUFdavvn1-VexNKt4qM3nnaCrGbtWl5YZ_wsJ0IPY,114
+grpcio-1.78.1.dist-info/WHEEL,sha256=o65GnfU-3OSueH5YhJHYDxBcyUNU6fTTs6Sc62aGfX0,151
 grpcio-1.78.1.dist-info/licenses/LICENSE,sha256=WQGY4_MF8sNH_eZNY3xlSSu-9VTbbINk4UnNN143l-4,29687
 grpcio-1.78.1.dist-info/top_level.txt,sha256=eEd2Jq_aVQFp38bWW8Pfwjz_5iibqeOFT-2zXlPAq_8,5

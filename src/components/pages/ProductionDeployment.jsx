@@ -287,17 +287,9 @@ export default function ProductionDeployment() {
         setRepoUrl(selectedProject.repo.replace('https://', ''));
         setBranchName(selectedProject.metadata.branchName);
 
-        const commitsData = await fetch('https://qz4k4nhlwfo4p3jdkzsxpdfksu0hwqir.lambda-url.ap-south-1.on.aws/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            query: `query GetCommits($githubRepo: String!, $branch: String) { getCommits(githubRepo: $githubRepo, branch: $branch) { sha message author date url } }`,
-            variables: { githubRepo: selectedProject.repo, branch: selectedProject.metadata.branchName || 'main' }
-          })
-        });
-        const commitsResult = await commitsData.json();
-        if (commitsResult.data?.getCommits) {
-          setCommits(commitsResult.data.getCommits);
+        const commitsData = await backendApi.getCommits(token, selectedProject.repo, selectedProject.metadata.branchName || 'main');
+        if (commitsData) {
+          setCommits(commitsData);
         }
 
         const match = selectedProject.repo.match(/github\.com\/([^\/]+)\/([^\/]+)/);

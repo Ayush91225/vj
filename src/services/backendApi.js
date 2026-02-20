@@ -86,8 +86,9 @@ class BackendApiService {
     return data.getDeployment;
   }
 
-  async getCommits(githubRepo, branch = 'main') {
+  async getCommits(token, githubRepo, branch = 'main') {
     const data = await this.graphqlRequest(GRAPHQL_QUERIES.GET_COMMITS, {
+      token,
       githubRepo,
       branch
     });
