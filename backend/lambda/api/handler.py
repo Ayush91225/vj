@@ -446,7 +446,7 @@ def handle_trigger_agent(variables: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def handle_get_deployment(variables: Dict[str, Any]) -> Dict[str, Any]:
-    """Get deployment details with agent run history"""
+    """Get deployment details with analysis results"""
     try:
         user_id = _get_user_from_token(variables.get('token'))
         if not user_id:
@@ -460,7 +460,6 @@ def handle_get_deployment(variables: Dict[str, Any]) -> Dict[str, Any]:
             if deployment_id not in _local_deployments:
                 return create_response(404, {'errors': [{'message': 'Deployment not found'}]})
             deployment_data = dict(_local_deployments[deployment_id])
-            # Get agent runs for this deployment
             deployment_data['agent_runs'] = [
                 r for r in _local_agent_runs.values()
                 if r['deployment_id'] == deployment_id
@@ -614,7 +613,7 @@ def handle_get_fixes(variables: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def handle_trigger_fix(variables: Dict[str, Any]) -> Dict[str, Any]:
-    """Trigger multi-agent fix workflow with real code analysis"""
+    """Trigger multi-agent fix workflow - invokes Lambda worker"""
     try:
         user_id = _get_user_from_token(variables.get('token'))
         if not user_id:
@@ -643,26 +642,53 @@ def handle_trigger_fix(variables: Dict[str, Any]) -> Dict[str, Any]:
         if not access_token:
             return create_response(400, {'errors': [{'message': 'GitHub access token not found'}]})
         
-        # Analyze code and create branch
-        print(f'[TriggerFix] Starting code analysis for project {project_id}')
+        # Create deployment record
+        deployment_id = str(uuid.uuid4())
+        now = datetime.now(timezone.utc).isoformat()
         
-        result = _analyze_and_fix_code(
-            repo_url=project.get('github_repo'),
-            branch_name=project.get('branch_name'),
-            access_token=access_token,
-            team_name=project.get('team_name'),
-            team_leader=project.get('team_leader')
-        )
+        deployment_data = {
+            'deployment_id': deployment_id,
+            'project_id': project_id,
+            'status': 'processing',
+            'created_at': now,
+            'updated_at': now
+        }
+        
+        if IS_LOCAL:
+            _local_deployments[deployment_id] = deployment_data
+        else:
+            deployments_table.put_item(Item=deployment_data)
+            
+            # Store access token in project for worker
+            projects_table.update_item(
+                Key={'project_id': project_id},
+                UpdateExpression='SET access_token = :token',
+                ExpressionAttributeValues={':token': access_token}
+            )
+            
+            # Invoke Lambda worker asynchronously
+            import boto3
+            lambda_client = boto3.client('lambda')
+            
+            try:
+                lambda_client.invoke(
+                    FunctionName='vajraopz-agent-worker',
+                    InvocationType='Event',  # Async
+                    Payload=json.dumps({
+                        'project_id': project_id,
+                        'deployment_id': deployment_id
+                    })
+                )
+                print(f'[TriggerFix] Invoked worker for deployment {deployment_id}')
+            except Exception as e:
+                print(f'[TriggerFix] Worker invocation failed: {e}')
         
         return create_response(200, {
             'data': {
                 'triggerFix': {
-                    'status': 'completed',
-                    'message': f'Analysis complete. Found {result["total_issues"]} issues, fixed {result["fixes_applied"]}',
-                    'branch_url': result.get('branch_url'),
-                    'score': result.get('score'),
-                    'issues': result.get('issues', []),
-                    'commits': result.get('commits', [])
+                    'status': 'processing',
+                    'deployment_id': deployment_id,
+                    'message': 'Analysis started. Check deployment status for results.'
                 }
             }
         })
